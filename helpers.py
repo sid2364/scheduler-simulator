@@ -1,4 +1,5 @@
 from entities import TaskSet
+import matplotlib.pyplot as plt
 
 """
 Utilisation factor functions
@@ -61,3 +62,22 @@ def get_delta_t(task_set: TaskSet) -> int:
 
     # Only unique values
     return get_gcd(list(set(time_period_list)))
+
+"""
+Plotter
+"""
+def pie_plot(sizes):
+    # Data to plot
+    labels = ['Infeasible', 'Not schedulable by A', 'Schedulable by A']
+    colors = ['gray', 'red', 'green']
+    explode = (0, 0, 0)
+
+    # Plot the pie chart
+    plt.pie(sizes, explode=explode, labels=labels, colors=colors, 
+            autopct='%1.1f%%', shadow=True, startangle=140)
+
+    # Equal aspect ratio ensures that pie is drawn as a circle.
+    plt.axis('equal')  
+
+    # Display the plot
+    plt.show()

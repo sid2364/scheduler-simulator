@@ -1,8 +1,10 @@
 from entities import TaskSet, Task, Job
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
+from helpers import pie_plot
 
 import csv
 import argparse
+import os
 
 def parse_task_file(file_path):
     tasks = []
@@ -18,6 +20,19 @@ def parse_task_file(file_path):
                 tasks.append(task)
     task_set = TaskSet(tasks)
     return task_set
+
+def parse_task_folder(folder_path):
+    task_files = []
+    files = os.listdir(folder_path)
+
+    # Filter only files (ignoring directories)
+    files = [f for f in files if os.path.isfile(os.path.join(folder_path, f))]
+    print(files)
+    # Print the list of files
+    for file in files:
+        print(file)
+        task_files.append(file)
+    return task_files
 
 
 def main():
@@ -35,16 +50,18 @@ def main():
     # Add the task set file argument (mandatory)
     parser.add_argument('task_set_file', type=str,
                         help='Path to the task set file.')
+    
+    #Check if it needs to review a single task or a whole data sheet
+    name = parser.parse_args().task_set_file
+    if '.' not in name:
+        plot_data_sets(algorithm = parser.parse_args().algorithm.lower(), task_set_file = parser.parse_args().task_set_file)
+    else:
+        review_task(algorithm = parser.parse_args().algorithm.lower(), task_set_file = parser.parse_args().task_set_file)
 
+def review_task(algorithm, task_set_file):
     # Parse the arguments
-    args = parser.parse_args()
-
     # Access the parameters
-    algorithm = args.algorithm.lower()
-    task_set_file = args.task_set_file
-
     task_set = parse_task_file(task_set_file)
-
 
     if algorithm == 'rm':
         task_scheduler = RateMonotonic(task_set)
@@ -62,6 +79,22 @@ def main():
 
     ret_val = task_scheduler.is_schedulable()
     print(ret_val)
+
+def plot_data_sets(algorithm, task_set_file):
+    infeasible = 0
+    not_schedulable_by_a = 0
+    schedulable_by_a = 0
+    task_files = parse_task_folder(task_set_file)
+
+    for task_file in task_files:
+        print(task_file)
+        value = review_task(algorithm, task_file)
+        if value == 0 or value == 1:
+            schedulable_by_a += 1
+        if value == 2 or value == 3:
+            not_schedulable_by_a += 1
+    infeasible = not_schedulable_by_a + schedulable_by_a
+    #pie_plot([infeasible, not_schedulable_by_a, schedulable_by_a])
 
 if __name__ == "__main__":
     #test_release_job()
