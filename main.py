@@ -1,35 +1,8 @@
-from sched import scheduler
-
 from entities import TaskSet, Task, Job
 from algorithms import RateMonotonic, DeadlineMonotonic, EarliestDeadlineFirst, RoundRobin
 
 import csv
 import argparse
-
-"""
-Tests
-"""
-def test_release_job():
-    task0 = Task(0, 2, 5, 10)
-    task1 = Task(1, 0, 3, 5)
-
-    assert task0.release_job(0) is not None
-    assert task0.release_job(10) is not None
-
-    assert task1.release_job(0) is None
-    assert task1.release_job(5) is None
-    assert task1.release_job(6) is not None
-
-def test_rate_monotonic_schedule():
-    task1 = Task(0, 1, 5, 5)
-    task2 = Task(0, 2, 8, 8)
-    task3 = Task(0, 1, 10, 10)
-    task4 = Task(0, 5, 20, 20)
-
-    task_set = TaskSet([task1, task2, task3, task4])
-    rm_scheduler = RateMonotonic(task_set)
-    ret_val = rm_scheduler.is_schedulable()
-    print(ret_val)
 
 def parse_task_file(file_path):
     tasks = []
@@ -48,12 +21,17 @@ def parse_task_file(file_path):
 
 
 def main():
+    # Set up command line argument parser
     parser = argparse.ArgumentParser(description='Select a scheduling algorithm and specify a task set file.')
 
     # Add the scheduling algorithm argument (mandatory)
     parser.add_argument('algorithm', choices=['rm', 'dm', 'audsley', 'edf', 'rr'],
                         help='Scheduling algorithm to use: dm, audsley, edf, or rr.')
 
+    # Optional flag for verbose mode
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="Enable verbose mode for detailed output.")
+    
     # Add the task set file argument (mandatory)
     parser.add_argument('task_set_file', type=str,
                         help='Path to the task set file.')
