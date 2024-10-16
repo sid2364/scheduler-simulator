@@ -19,6 +19,14 @@ class RateMonotonic(Scheduler):
         return sorted_tasks[0]
 
 """
+Audsley
+"""
+class Audsley(Scheduler):
+    pass
+    # TODO!
+
+
+"""
 Deadline Monotonic
 """
 class DeadlineMonotonic(Scheduler):

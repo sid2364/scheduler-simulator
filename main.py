@@ -1,5 +1,5 @@
 from entities import TaskSet, Task, Job
-from algorithms import RateMonotonic, DeadlineMonotonic, EarliestDeadlineFirst, RoundRobin
+from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 
 import csv
 import argparse
@@ -50,6 +50,8 @@ def main():
         task_scheduler = RateMonotonic(task_set)
     elif algorithm == 'dm' or algorithm == 'audsley':
         task_scheduler = DeadlineMonotonic(task_set)
+    elif algorithm == 'audsley':
+        task_scheduler = Audsley(task_set)
     elif algorithm == 'edf':
         task_scheduler = EarliestDeadlineFirst(task_set)
     elif algorithm == 'rr':
