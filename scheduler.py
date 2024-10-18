@@ -39,7 +39,7 @@ class Scheduler(ABC):
     def is_schedulable(self):
         if is_utilisation_lt_69(self.task_set):
             # The task set is schedulable, and you took a shortcut
-            pass
+            return 1
             #return 1 # this is wrong because it's not always schedulable!!! FIXME
 
         if is_utilisation_gt_1(self.task_set):
