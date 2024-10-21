@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from entities import TaskSet
-from helpers import get_delta_t, get_hyper_period, is_utilisation_lte_69, is_utilisation_lte_1
+from helpers import get_delta_t, get_hyper_period
 
 
 @dataclass
@@ -60,6 +60,7 @@ class Scheduler(ABC):
         time_step = get_delta_t(self.task_set)
         o_max = max([task.offset for task in self.task_set.tasks])
         time_max = o_max + 2 * get_hyper_period(self.task_set) # Omax + 2 * Hyperperiod
+        # print(f"Time max: {time_max}")
 
         if time_max > 50000:
             # Too long to simulate!
@@ -74,7 +75,7 @@ class Scheduler(ABC):
 
         while t < time_max:
             # Check for deadline misses
-            #print(f"Time {t}-{t + time_step}:")
+            # print(f"Time {t}-{t + time_step}:")
             for task in self.task_set.tasks:
                 for job in task.jobs:
                     if job.deadline_missed(t):
@@ -82,6 +83,10 @@ class Scheduler(ABC):
                         return 0
 
             # Check if the previous cycle job is finished
+            # print(f"Active tasks: {[f'T{task.task_id}' for task in active_tasks]}")
+            # print(f"Current jobs: {[f'{job}' for job in current_jobs]}")
+            # print(f"Previous cycle job: {previous_cycle_job}")
+            # print(f"Previous cycle task: {previous_cycle_task}")
             if previous_cycle_job is not None and previous_cycle_task is not None:
                 if previous_cycle_job.is_finished():
                     #print(f"Finished {previous_cycle_job} at time {t}")
@@ -93,15 +98,14 @@ class Scheduler(ABC):
             # Check for new job releases
             for task in self.task_set.tasks:
                 job = task.release_job(t)
-                current_jobs.append(job)
                 if job is not None:
                     active_tasks.append(task)
-                    # #print(f"{job} released at time {t}")
+                    current_jobs.append(job)
 
             # Execute the highest priority job that is released and not finished for one time_unit
             highest_priority_task = self.get_top_priority(active_tasks)
             if highest_priority_task is None:
-                #print(f"No tasks to schedule at time {t}, idle time!\n")
+                # print(f"No tasks to schedule at time {t}, idle time!\n")
                 t += time_step
                 continue
 
@@ -109,7 +113,7 @@ class Scheduler(ABC):
             # #print(f"Highest priority task: T{highest_priority_task.task_id}")
             current_cycle_job = highest_priority_task.get_first_job()
             if current_cycle_job is None:
-                #print(f"No jobs to schedule at time {t}, idle time!\n")
+                # print(f"No jobs to schedule at time {t}, idle time!\n")
                 t += time_step
                 continue
 
@@ -119,10 +123,12 @@ class Scheduler(ABC):
 
             if current_cycle_job == previous_cycle_job:
                 pass
-                #print(f"Same {current_cycle_job} running at time {t}")
+                # print(f"Same {current_cycle_job} running at time {t}")
             else:
-                #print(f"Running {current_cycle_job} at time {t}")
+                # print(f"Running {current_cycle_job} at time {t}")
+                # print(f"Current cycle job which is now previous cycle job: {current_cycle_job}")
                 previous_cycle_job = current_cycle_job
 
             t += time_step
+
         return 1  # All jobs finished on time till time_max

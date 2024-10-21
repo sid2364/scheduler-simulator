@@ -7,11 +7,12 @@ class TaskSet:
 
 @dataclass
 class Task:
-    task_id = 0 # static member that keeps track of count of instances
+    task_id = 0  # static member that keeps track of count of instances
     offset: int
     computation_time: int
     deadline: int
     period: int
+    priority: int = None  # Only used in Audsley's algorithm
 
     def __init__(self, offset, computation_time, deadline, period):
         Task.task_id += 1
@@ -22,6 +23,7 @@ class Task:
         self.period = period
         self.jobs = []
         self.job_count = 0
+        self.priority = 0  # Default to 0, only used in Audsley's algorithm
 
     def release_job(self, release_time):
         if release_time < self.offset:
@@ -31,15 +33,27 @@ class Task:
             self.job_count += 1
             self.jobs.append(job)
             return job
+
     def get_first_job(self):
         if len(self.jobs) == 0:
             return None
         return self.jobs[0]
+
     def finish_job(self, job):
         self.jobs.remove(job)
 
+    def clear_state(self):
+        """
+        Only used to implement Audsley!
+
+        Clear the jobs and reset job_count for a fresh simulation.
+        """
+        self.jobs = []
+        self.job_count = 0
+
     def __str__(self):
-        return f"T{self.task_id} with period {self.period} and deadline {self.deadline}"
+        return f"T{self.task_id} with period {self.period}, deadline {self.deadline}, priority {self.priority}"
+
 
 @dataclass
 class Job:

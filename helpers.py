@@ -93,6 +93,7 @@ def pie_plot_(sizes_dict):
 def pie_plot(sizes_dict):
     # Use the friendly labels
     labels_nice = ['Not Schedulable', 'Schedulable', 'Infeasible']
+    print(sizes_dict)
 
     # Original data labels and values
     labels = []

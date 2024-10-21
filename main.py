@@ -23,7 +23,7 @@ def get_scheduler(algorithm, task_set, verbose):
         return None
 
 def review_task_set(algorithm, task_set, verbose=False):
-    print(f"Reviewing task set")
+    # print(f"Reviewing task set")
 
     if task_set is None:
         print("Task set could not be parsed.")
@@ -90,14 +90,14 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
     with multiprocessing.Pool(processes=8) as pool:
         results = [(task_set, pool.apply_async(review_task_set, args=(algorithm, task_set, verbose))) for task_set in task_sets]
         pool.close()
-        pool.join()
-
+        pool.join() # TODO check if this actually works!
 
     # Count the results
     total_files = len(task_sets)
     for task_set, async_result in results:
         try:
             value = async_result.get(timeout=timeout)
+            # print(f"Value: {value}")
         except multiprocessing.TimeoutError:
             print(f"Timeout error occurred for set: {task_set}")
             value = 5
