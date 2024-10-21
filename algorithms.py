@@ -90,14 +90,50 @@ Audsley
 """
 class Audsley(Scheduler):
     def __post_init__(self):
-        pass
-
+        self.unassigned_tasks = self.task_set.tasks[:]
+        self.assigned_tasks = []
+    
     def get_top_priority(self, active_tasks):
-        pass
-
+        if len(active_tasks) == 0:
+            return None
+        
+        # Return the task with the lowest priority, which is the last one assigned
+        return self.assigned_tasks[-1] if self.assigned_tasks else None
+    
     def is_schedulable(self):
-        pass
+        """
+        Implements Audsley's algorithm to assign priorities and check schedulability.
+        Returns:
+            1: Schedulable (all tasks assigned priorities successfully)
+            2: Not schedulable (deadline missed)
+            5: Took too long to simulate execution
+        """
+        while self.unassigned_tasks:
+            assigned = False
+            
+            # Try assigning each unassigned task the lowest priority
+            for task in self.unassigned_tasks:
+                # Temporarily assign this task as the lowest priority
+                self.assigned_tasks.append(task)
+                
+                # Simulate the schedule and check schedulability
+                schedulable = self.schedule_taskset()
+                
+                if schedulable == 1:
+                    # Task set is schedulable with this task assigned the lowest priority
+                    self.unassigned_tasks.remove(task)
+                    assigned = True
+                    break
+                else:
+                    # Remove the task from assigned tasks, undo the temporary assignment
+                    self.assigned_tasks.pop()
+                
+            if not assigned:
+                # If no task can be assigned the lowest priority, the set is not schedulable
+                return 2
 
+        # If all tasks have been successfully assigned priorities, it's schedulable
+        return 1
 
 """
 Earliest Deadline First
