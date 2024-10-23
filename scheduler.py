@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from entities import TaskSet
 from helpers import get_delta_t, get_hyper_period
 
+MAX_ITERATIONS_LIMIT = 200000
 
 @dataclass
 class Scheduler(ABC):
@@ -12,9 +13,11 @@ class Scheduler(ABC):
     """
     Initialize the scheduler with the task set
     """
-    def __init__(self, task_set: TaskSet, verbose=False):
+    def __init__(self, task_set: TaskSet, verbose=False, force_simulation=False):
         self.task_set = task_set
         self.verbose = verbose
+        self.print = lambda *args: print(*args) if self.verbose else None # Print only if verbose is True
+        self.force_simulation = force_simulation
         self.__post_init__()
 
     @abstractmethod
@@ -62,7 +65,7 @@ class Scheduler(ABC):
         time_max = o_max + 2 * get_hyper_period(self.task_set) # Omax + 2 * Hyperperiod
         # print(f"Time max: {time_max}")
 
-        if time_max > 50000:
+        if time_max > MAX_ITERATIONS_LIMIT:
             # Too long to simulate!
             return 5
 
@@ -75,11 +78,11 @@ class Scheduler(ABC):
 
         while t < time_max:
             # Check for deadline misses
-            # print(f"Time {t}-{t + time_step}:")
+            self.print(f"Time {t}-{t + time_step}:")
             for task in self.task_set.tasks:
                 for job in task.jobs:
                     if job.deadline_missed(t):
-                        #print(f"Deadline missed for job {job} at time {t}")
+                        self.print(f"Deadline missed for job {job} at time {t}")
                         return 0
 
             # Check if the previous cycle job is finished
@@ -89,7 +92,7 @@ class Scheduler(ABC):
             # print(f"Previous cycle task: {previous_cycle_task}")
             if previous_cycle_job is not None and previous_cycle_task is not None:
                 if previous_cycle_job.is_finished():
-                    #print(f"Finished {previous_cycle_job} at time {t}")
+                    self.print(f"Finished {previous_cycle_job} at time {t}")
                     active_tasks.remove(previous_cycle_job.task)
                     current_jobs.remove(previous_cycle_job)
                     previous_cycle_task.finish_job(previous_cycle_job)
@@ -101,11 +104,12 @@ class Scheduler(ABC):
                 if job is not None:
                     active_tasks.append(task)
                     current_jobs.append(job)
+                    self.print(f"Released {job} at time {t}")
 
             # Execute the highest priority job that is released and not finished for one time_unit
             highest_priority_task = self.get_top_priority(active_tasks)
             if highest_priority_task is None:
-                # print(f"No tasks to schedule at time {t}, idle time!\n")
+                self.print(f"No tasks to schedule at time {t}, idle time!\n")
                 t += time_step
                 continue
 
@@ -113,7 +117,7 @@ class Scheduler(ABC):
             # #print(f"Highest priority task: T{highest_priority_task.task_id}")
             current_cycle_job = highest_priority_task.get_first_job()
             if current_cycle_job is None:
-                # print(f"No jobs to schedule at time {t}, idle time!\n")
+                self.print(f"No jobs to schedule at time {t}, idle time!\n")
                 t += time_step
                 continue
 
@@ -123,9 +127,9 @@ class Scheduler(ABC):
 
             if current_cycle_job == previous_cycle_job:
                 pass
-                # print(f"Same {current_cycle_job} running at time {t}")
+                self.print(f"Same {current_cycle_job} running at time {t}")
             else:
-                # print(f"Running {current_cycle_job} at time {t}")
+                self.print(f"Running {current_cycle_job} at time {t}")
                 # print(f"Current cycle job which is now previous cycle job: {current_cycle_job}")
                 previous_cycle_job = current_cycle_job
 

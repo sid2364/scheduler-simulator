@@ -29,11 +29,11 @@ class RateMonotonic(Scheduler):
         return sorted_tasks[0]
 
     def is_schedulable(self):
-        if is_utilisation_lte_69(self.task_set): #only for RM/DM
+        if is_utilisation_lte_69(self.task_set) and not self.force_simulation: #only for RM/DM
             # The task set is schedulable, and you took a shortcut
             return 1
 
-        if not is_utilisation_lte_1(self.task_set):
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
             # The task set is not schedulable and you took a shortcut
             return 3
 
@@ -67,10 +67,10 @@ class DeadlineMonotonic(Scheduler):
 
     def is_schedulable(self):
         # Use utilization-based shortcut (DM has the same utilization threshold as RM)
-        if is_utilisation_lte_69(self.task_set):  # utilization check for DM
+        if is_utilisation_lte_69(self.task_set) and not self.force_simulation:  # utilization check for DM
             return 1  # Schedulable by utilization shortcut
 
-        if not is_utilisation_lte_1(self.task_set):
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
             return 3  # Not schedulable due to utilization exceeding 1
 
         # Simulate scheduling tasks within the feasibility interval
@@ -108,10 +108,10 @@ class Audsley(Scheduler):
 
     def is_schedulable(self):
         # Try assigning priorities from lowest to highest using Audsley's algorithm, but first:
-        if is_utilisation_lte_69(self.task_set):
+        if is_utilisation_lte_69(self.task_set) and not self.force_simulation:
             return 1  # Schedulable by utilization shortcut
 
-        if not is_utilisation_lte_1(self.task_set):
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
             return 3  # Not schedulable due to utilization exceeding 1
 
         tasks = self.task_set.tasks[:]
@@ -120,10 +120,21 @@ class Audsley(Scheduler):
             task.priority = 0  # Reset priority assignments
 
         result = self.try_assign_lowest_priority(tasks)
-        return result
+        if result == 1:
+            # The task set is schedulable after simulation
+            return 0
+        elif result == 2:
+            # The task set is not schedulable after simulation
+            return 2
+        elif result == 5:
+            # Simulation took too long, exclude the task set
+            return 5
+
 
     """
     Try to assign the lowest priority to a task and recurse with the remaining tasks till we find a schedulable set
+    
+    Returns 1 if the task set is schedulable, 2 if not schedulable, 5 if the simulation took too long
     """
     def try_assign_lowest_priority(self, tasks):
         if not tasks:
@@ -165,12 +176,16 @@ class Audsley(Scheduler):
         for t in self.task_set.tasks:
             t.clear_state()
 
+        self.print(f"Trying to schedule task {task} with priority {task.priority}")
+        self.print(f"Remaining tasks: {[t for t in remaining_tasks]}")
+
         # Create a TaskSet with the remaining tasks, ignoring their order, and use priority attribute in scheduling
         custom_priority_task_set = TaskSet(remaining_tasks + [task])  # Add task to the set
 
         temp_scheduler = _CustomPriorityAudsley(custom_priority_task_set)
 
         schedulable = temp_scheduler.schedule_taskset()
+        self.print(f"Simulation result: {schedulable}")
         return schedulable
 
 class _CustomPriorityAudsley(Scheduler):
@@ -189,10 +204,10 @@ class _CustomPriorityAudsley(Scheduler):
         return top_task
 
     def is_schedulable(self):
-        if is_utilisation_lte_69(self.task_set):  # utilization check for DM
+        if is_utilisation_lte_69(self.task_set) and not self.force_simulation:  # utilization check for DM
             return 1  # Schedulable by utilization shortcut
 
-        if not is_utilisation_lte_1(self.task_set):
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
             return 3  # Not schedulable due to utilization exceeding 1
 
         # Custom scheduler just runs based on the assigned priorities
@@ -236,10 +251,32 @@ Round Robin
 """
 class RoundRobin(Scheduler):
     def __post_init__(self):
+        self.task_queue = self.task_set.tasks
+        # Initialise the queue to keep track of incoming tasks
+        # This queue is not necessarily a priority queue, it's just a representation of the order he tasks will execute in
         pass
 
     def get_top_priority(self, active_tasks):
-        pass
+        # Round Robin is a preemptive algorithm, so we just return the first task in the list
+        if len(active_tasks) == 0:
+            return None
+        self.print("Queue: ", [t.task_id for t in self.task_queue])
+        # Iterate through job_queue and return the first task which is active
+        for task in self.task_queue:
+            if task in active_tasks:
+                t = self.task_queue.pop(0) # Remove from the "front"
+                self.task_queue.append(t) # Add to the "back"
+                return t
 
     def is_schedulable(self):
-        pass
+        # Round Robin is not optimal, so we have to simulate the execution
+        ret_val = self.schedule_taskset()
+        if ret_val == 1:
+            # The task set is schedulable and you had to simulate the execution.
+            return 0
+        elif ret_val == 0:
+            # The task set is not schedulable and you had to simulate the execution.
+            return 2
+        elif ret_val == 5:
+            # Took too long to simulate the execution, exclude the task set.
+            return 5

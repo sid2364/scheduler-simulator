@@ -2,6 +2,23 @@ from entities import TaskSet
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
+"""
+Enum class for the status of the task set 
+"""
+class Schedulable:
+    SCHEDULABLE = 1
+    NOT_SCHEDULABLE_BY_A = 0
+    INFEASIBLE = 2
+
+    # get string representation of the status
+    @staticmethod
+    def get_status_string(status):
+        if status == Schedulable.SCHEDULABLE:
+            return "Schedulable"
+        elif status == Schedulable.NOT_SCHEDULABLE_BY_A:
+            return "Not Schedulable by A"
+        elif status == Schedulable.INFEASIBLE:
+            return "Infeasible"
 
 """
 Utilisation factor functions
@@ -92,8 +109,8 @@ def pie_plot_(sizes_dict):
 
 def pie_plot(sizes_dict):
     # Use the friendly labels
-    labels_nice = ['Not Schedulable', 'Schedulable', 'Infeasible']
-    print(sizes_dict)
+    # labels_nice = ['Not Schedulable', 'Schedulable', 'Infeasible']
+    print([(Schedulable.get_status_string(k), v) for k, v in sizes_dict.items()])
 
     # Original data labels and values
     labels = []
@@ -104,7 +121,7 @@ def pie_plot(sizes_dict):
 
     for key, value in sizes_dict.items():
         if value != 0:
-            labels.append(key)
+            labels.append(Schedulable.get_status_string(key))
             sizes.append(value)
 
     explode = [0.05] * len(sizes)  # Slightly explode all slices
@@ -121,7 +138,7 @@ def pie_plot(sizes_dict):
     plt.axis('equal')  # Equal aspect ratio ensures the pie is drawn as a circle.
 
     # Add a legend using the nice labels
-    plt.legend(wedges, labels_nice[:len(sizes)], title="Categories", loc="upper right",
+    plt.legend(wedges, [Schedulable.get_status_string(v) for v in sizes_dict.keys()], title="Categories", loc="upper right",
                bbox_to_anchor=(1, 1), fontsize=10)
 
     # Adjust layout to prevent cutoff
