@@ -5,8 +5,8 @@ from time import time
 from entities import TaskSet
 from helpers import get_delta_t, get_hyper_period
 
-MAX_ITERATIONS_LIMIT = 200000
-MAX_SECONDS_LIMIT = 5
+MAX_ITERATIONS_LIMIT = 200000 # Saves some time by exiting if we already know it's going to take too long
+MAX_SECONDS_LIMIT = 3 # 3 seconds per task set is actually a lot of time!
 
 @dataclass
 class Scheduler(ABC):
@@ -67,7 +67,7 @@ class Scheduler(ABC):
         time_max = o_max + 2 * get_hyper_period(self.task_set) # Omax + 2 * Hyperperiod
         # print(f"Time max: {time_max}")
 
-        # Naive check to see if we're taking too long to simulate
+        # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
         # if time_max > MAX_ITERATIONS_LIMIT:
         #     # Too long to simulate!
         #     return 5
@@ -85,6 +85,7 @@ class Scheduler(ABC):
         while t < time_max:
             # Check if we're taking too long to run this function
             if time() - time_started > MAX_SECONDS_LIMIT:
+                self.print(f"Took more than {MAX_SECONDS_LIMIT}, timing out!")
                 return 5
 
             # Check for deadline misses
@@ -96,10 +97,10 @@ class Scheduler(ABC):
                         return 0
 
             # Check if the previous cycle job is finished
-            # print(f"Active tasks: {[f'T{task.task_id}' for task in active_tasks]}")
-            # print(f"Current jobs: {[f'{job}' for job in current_jobs]}")
-            # print(f"Previous cycle job: {previous_cycle_job}")
-            # print(f"Previous cycle task: {previous_cycle_task}")
+            # self.print(f"Active tasks: {[f'T{task.task_id}' for task in active_tasks]}")
+            # self.print(f"Current jobs: {[f'{job}' for job in current_jobs]}")
+            # self.print(f"Previous cycle job: {previous_cycle_job}")
+            # self.print(f"Previous cycle task: {previous_cycle_task}")
             if previous_cycle_job is not None and previous_cycle_task is not None:
                 if previous_cycle_job.is_finished():
                     self.print(f"Finished {previous_cycle_job} at time {t}")
@@ -123,8 +124,8 @@ class Scheduler(ABC):
                 t += time_step
                 continue
 
-            # #print(f"Active tasks: {[f"T{task.task_id}" for task in active_tasks]}")
-            # #print(f"Highest priority task: T{highest_priority_task.task_id}")
+            # self.print(f"Active tasks: {[f"T{task.task_id}" for task in active_tasks]}")
+            # self.print(f"Highest priority task: T{highest_priority_task.task_id}")
             current_cycle_job = highest_priority_task.get_first_job()
             if current_cycle_job is None:
                 self.print(f"No jobs to schedule at time {t}, idle time!\n")
@@ -140,7 +141,7 @@ class Scheduler(ABC):
                 self.print(f"Same {current_cycle_job} running at time {t}")
             else:
                 self.print(f"Running {current_cycle_job} at time {t}")
-                # print(f"Current cycle job which is now previous cycle job: {current_cycle_job}")
+                # self.print(f"Current cycle job which is now previous cycle job: {current_cycle_job}")
                 previous_cycle_job = current_cycle_job
 
             t += time_step

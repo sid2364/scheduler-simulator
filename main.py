@@ -53,6 +53,7 @@ def review_task_sets(algorithm, folder_name, verbose=False):
     infeasible = 0
     not_schedulable_by_a = 0
     schedulable_by_a = 0
+    timed_out = 0
     directory = Path(folder_name)
 
     # Recursively get all the task files in the directory
@@ -72,10 +73,12 @@ def review_task_sets(algorithm, folder_name, verbose=False):
                 schedulable_by_a += 1
             elif value == 2:
                 not_schedulable_by_a += 1
+                # TODO: fix this
             elif value == 3:
                 not_schedulable_by_a += 1
-            elif value == 5:
+            elif value == 5: # Tried to schedule but couldn't
                 infeasible += 1
+                timed_out += 1
     return {
         Schedulable.INFEASIBLE: infeasible,
         Schedulable.NOT_SCHEDULABLE_BY_A: not_schedulable_by_a,
