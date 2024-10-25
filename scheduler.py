@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from time import time
 
 from entities import TaskSet
 from helpers import get_delta_t, get_hyper_period
 
 MAX_ITERATIONS_LIMIT = 200000
+MAX_SECONDS_LIMIT = 5
 
 @dataclass
 class Scheduler(ABC):
@@ -65,9 +67,13 @@ class Scheduler(ABC):
         time_max = o_max + 2 * get_hyper_period(self.task_set) # Omax + 2 * Hyperperiod
         # print(f"Time max: {time_max}")
 
-        if time_max > MAX_ITERATIONS_LIMIT:
-            # Too long to simulate!
-            return 5
+        # Naive check to see if we're taking too long to simulate
+        # if time_max > MAX_ITERATIONS_LIMIT:
+        #     # Too long to simulate!
+        #     return 5
+
+        # Start a timer so we only simulate for a limited time!
+        time_started = time()
 
         current_jobs = []
         active_tasks = []
@@ -77,6 +83,10 @@ class Scheduler(ABC):
         previous_cycle_task = None
 
         while t < time_max:
+            # Check if we're taking too long to run this function
+            if time() - time_started > MAX_SECONDS_LIMIT:
+                return 5
+
             # Check for deadline misses
             self.print(f"Time {t}-{t + time_step}:")
             for task in self.task_set.tasks:

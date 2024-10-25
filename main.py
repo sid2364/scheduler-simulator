@@ -1,8 +1,11 @@
-from helpers import pie_plot, Schedulable
 import argparse
 from pathlib import Path
 import multiprocessing
+from time import time
 import concurrent.futures
+
+from helpers import pie_plot_categories, Schedulable
+
 
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 from parse_tasks import parse_task_file
@@ -155,17 +158,21 @@ def main():
     verbose = parser.parse_args().verbose
     force_simulation = parser.parse_args().force_simulation
 
+
+    start_time = time()
     # Check if the address corresponds to a single dataset or if it is a folder containing many
     path = Path(task_set_location)
     if path.is_dir():
-        stats = review_task_sets_in_parallel(algorithm, task_set_location, verbose, force_simulation)
+        schedule_stats = review_task_sets_in_parallel(algorithm, task_set_location, verbose=verbose, force_simulation=force_simulation)
+        print(f"Time taken: {int(time() - start_time)} seconds")
         # stats = review_task_sets(algorithm, task_set_location, verbose)
 
-        pie_plot(stats)
+        pie_plot_categories(schedule_stats)
     else:
         # Left in for debugging purposes
         task_set = parse_task_file(path)
-        review_task_set(algorithm, task_set, verbose, force_simulation)
+        review_task_set(algorithm, task_set, verbose=verbose, force_simulation=force_simulation, task_file=path)
+        print(f"Time taken: {int(time() - start_time)} seconds")
 
 if __name__ == "__main__":
     main()

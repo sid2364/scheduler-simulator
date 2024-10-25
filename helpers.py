@@ -107,22 +107,20 @@ def pie_plot_(sizes_dict):
     # Display the plot
     plt.show()
 
-def pie_plot(sizes_dict):
-    # Use the friendly labels
-    # labels_nice = ['Not Schedulable', 'Schedulable', 'Infeasible']
-    print([(Schedulable.get_status_string(k), v) for k, v in sizes_dict.items()])
+def pie_plot_categories(category_frequency_dict):
+    print([(Schedulable.get_status_string(k), v) for k, v in category_frequency_dict.items()])
 
     # Original data labels and values
     labels = []
     sizes = []
 
     # Dynamic color palette
-    colors = list(mcolors.TABLEAU_COLORS.values())[:len(sizes_dict)]
+    colors = list(mcolors.TABLEAU_COLORS.values())[:len(category_frequency_dict)]
 
-    for key, value in sizes_dict.items():
-        if value != 0:
-            labels.append(Schedulable.get_status_string(key))
-            sizes.append(value)
+    # Convert the dictionary to lists for plotting
+    for key, value in category_frequency_dict.items():
+        labels.append(Schedulable.get_status_string(key))
+        sizes.append(value)
 
     explode = [0.05] * len(sizes)  # Slightly explode all slices
 
@@ -138,7 +136,7 @@ def pie_plot(sizes_dict):
     plt.axis('equal')  # Equal aspect ratio ensures the pie is drawn as a circle.
 
     # Add a legend using the nice labels
-    plt.legend(wedges, [Schedulable.get_status_string(v) for v in sizes_dict.keys()], title="Categories", loc="upper right",
+    plt.legend(wedges, labels, title="Categories", loc="upper right",
                bbox_to_anchor=(1, 1), fontsize=10)
 
     # Adjust layout to prevent cutoff
