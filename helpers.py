@@ -5,20 +5,32 @@ import matplotlib.colors as mcolors
 """
 Enum class for the status of the task set 
 """
-class Schedulable:
-    SCHEDULABLE = 1
-    NOT_SCHEDULABLE_BY_A = 0
-    INFEASIBLE = 2
+class Feasibility:
+    FEASIBLE_SHORTCUT = 0
+    FEASIBLE_SIMULATION = 1
+    NOT_SCHEDULABLE_BY_A_SHORTCUT = 2
+    NOT_SCHEDULABLE_BY_A_SIMULATION = 3
+    SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A = 4
+    INFEASIBLE = 5
+    TIMED_OUT = 6
 
     # get string representation of the status
     @staticmethod
     def get_status_string(status):
-        if status == Schedulable.SCHEDULABLE:
-            return "Schedulable"
-        elif status == Schedulable.NOT_SCHEDULABLE_BY_A:
-            return "Not Schedulable by A"
-        elif status == Schedulable.INFEASIBLE:
-            return "Infeasible"
+        if status == Feasibility.FEASIBLE_SHORTCUT:
+            return "Feasible, took a shortcut"
+        elif status == Feasibility.FEASIBLE_SIMULATION:
+            return "Feasible, had to simulate"
+        elif status == Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT:
+            return "Not Schedulable by A, took a shortcut"
+        elif status == Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION:
+            return "Not Schedulable by A, had to simulate"
+        elif status == Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A:
+            return "Schedulable by Optimal (EDF) but not by A"
+        elif status == Feasibility.INFEASIBLE:
+            return "Infeasible (both A and Optimal)"
+        elif status == Feasibility.TIMED_OUT:
+            return "Timed Out"
 
 """
 Utilisation factor functions
@@ -83,32 +95,8 @@ def get_delta_t(task_set: TaskSet) -> int:
 """
 Plotter
 """
-def pie_plot_(sizes_dict):
-    labels = []
-    sizes = []
-    colors = ['gray', 'red', 'green']
-    labels_nice = ['Not Schedulable', 'Schedulable', 'Infeasible']
-    print(sizes_dict)
-    for key, value in sizes_dict.items():
-        if value != 0:
-            labels.append(key)
-            sizes.append(value)
-
-    explode = (0, 0, 0)
-    print(sizes)
-    print(labels)
-    # Plot the pie chart
-    plt.pie(sizes, explode=explode, labels=labels, colors=colors, 
-            autopct='%1.1f%%', shadow=True, startangle=140)
-
-    # Equal aspect ratio ensures that pie is drawn as a circle.
-    plt.axis('equal')  
-
-    # Display the plot
-    plt.show()
-
 def pie_plot_categories(category_frequency_dict):
-    print([(Schedulable.get_status_string(k), v) for k, v in category_frequency_dict.items()])
+    print([(Feasibility.get_status_string(k), v) for k, v in category_frequency_dict.items()])
 
     # Original data labels and values
     labels = []
@@ -119,7 +107,7 @@ def pie_plot_categories(category_frequency_dict):
 
     # Convert the dictionary to lists for plotting
     for key, value in category_frequency_dict.items():
-        labels.append(Schedulable.get_status_string(key))
+        labels.append(Feasibility.get_status_string(key))
         sizes.append(value)
 
     explode = [0.05] * len(sizes)  # Slightly explode all slices

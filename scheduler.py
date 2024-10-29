@@ -68,9 +68,9 @@ class Scheduler(ABC):
         # print(f"Time max: {time_max}")
 
         # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
-        # if time_max > MAX_ITERATIONS_LIMIT:
-        #     # Too long to simulate!
-        #     return 5
+        if time_max > MAX_ITERATIONS_LIMIT:
+            # Too long to simulate!
+            return 5
 
         # Start a timer so we only simulate for a limited time!
         time_started = time()

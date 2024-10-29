@@ -3,15 +3,6 @@ from helpers import is_utilisation_lte_69, is_utilisation_lte_1
 from scheduler import Scheduler
 
 """
-TODO: use feasibility interval to schedule, so [Omax, 2P + Omax) is the interval we need
-
-TODO: check if the existence of an idle point when there are no jobs in the queue implies schedulability (in EDF)
-
-TODO: use multiprocessing
-"""
-
-
-"""
 Rate Monotonic
 """
 class RateMonotonic(Scheduler):

@@ -4,12 +4,15 @@ import multiprocessing
 from time import time
 import concurrent.futures
 
-from helpers import pie_plot_categories, Schedulable
-
-
+from helpers import pie_plot_categories, Feasibility
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 from parse_tasks import parse_task_file
 
+OPTIMAL_ALGORITHM = "edf"
+
+"""
+Return an instance of the scheduler based on the algorithm selected
+"""
 def get_scheduler(algorithm, task_set, verbose, force_simulation):
     if algorithm == 'rm':
         return RateMonotonic(task_set, verbose, force_simulation)
@@ -25,6 +28,23 @@ def get_scheduler(algorithm, task_set, verbose, force_simulation):
         print("Invalid algorithm selected.") # Won't happen because of argparse but why not
         return None
 
+
+"""
+Return an instance of EDF
+"""
+def get_optimal_scheduler(task_set, verbose, force_simulation):
+    return get_scheduler(OPTIMAL_ALGORITHM, task_set, verbose, force_simulation)
+
+"""
+Check if a task set is schedulable by the optimal algorithm
+"""
+def check_schedulable_by_optimal(task_set, verbose=False, force_simulation=False):
+    optimal_scheduler = get_optimal_scheduler(task_set, verbose, force_simulation)
+    return optimal_scheduler.is_schedulable()
+
+"""
+Check if a task set is schedulable by the specified algorithm
+"""
 def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, task_file=None):
     if task_set is None:
         print("Task set could not be parsed.")
@@ -47,93 +67,80 @@ def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, 
     return ret_val
 
 """
-Unused function, does the same as review_task_sets_in_parallel but without multiprocessing
+Evaluate multiple task sets in a folder in parallel!
 """
-def review_task_sets(algorithm, folder_name, verbose=False):
-    infeasible = 0
-    not_schedulable_by_a = 0
-    schedulable_by_a = 0
-    timed_out = 0
-    directory = Path(folder_name)
-
-    # Recursively get all the task files in the directory
-    task_files = [str(task_file) for task_file in directory.rglob("*") if task_file.is_file()]
-
-    task_sets = []
-    for task_file in task_files:
-        task_sets.append(parse_task_file(task_file))
-
-    # Now check if these task files are schedulable or not
-    for task_set in task_sets:
-        value = review_task_set(algorithm, task_set, verbose)
-        if value is not None:
-            if value == 0:
-                schedulable_by_a += 1
-            elif value == 1:
-                schedulable_by_a += 1
-            elif value == 2:
-                not_schedulable_by_a += 1
-                # TODO: fix this
-            elif value == 3:
-                not_schedulable_by_a += 1
-            elif value == 5: # Tried to schedule but couldn't
-                infeasible += 1
-                timed_out += 1
-    return {
-        Schedulable.INFEASIBLE: infeasible,
-        Schedulable.NOT_SCHEDULABLE_BY_A: not_schedulable_by_a,
-        Schedulable.SCHEDULABLE: schedulable_by_a
-    }
-
 def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=10, force_simulation=False):
     infeasible = 0
     not_schedulable_by_a = 0
     schedulable_by_a = 0
+
+    schedulable_by_a_shortcut = 0
+    schedulable_by_a_simulated = 0
+    not_schedulable_by_a_shortcut = 0
+    not_schedulable_by_a_simulated = 0
+    timed_out = 0
+    schedulable_by_optimal_but_not_by_a = 0
+
     directory = Path(folder_name)
 
     # Recursively get all the task files in the directory
     task_files = [str(task_file) for task_file in directory.rglob("*") if task_file.is_file()]
 
-    task_sets = []
+    tasks = []
     for task_file in task_files:
-        task_sets.append((parse_task_file(task_file), task_file))
+        tasks.append((parse_task_file(task_file), task_file)) # (TaskSet, Path)
 
     # Now check in parallel if these task files are schedulable or not
     with multiprocessing.Pool(processes=8) as pool:
-        results = [(task_set[1],
-                    pool.apply_async(review_task_set, args=(algorithm, task_set[0], verbose, force_simulation, task_set[1])))
-                   for task_set in task_sets]
+        results = [(task_set[0], # TaskSet
+                    task_set[1], # Path
+                    pool.apply_async(review_task_set, args=(algorithm, task_set[0], verbose, force_simulation, task_set[1]))) # Scheduler result
+                   for task_set in tasks]
         pool.close()
         pool.join()
 
     # Count the results
-    total_files = len(task_sets)
-    for task_set, async_result in results:
+    total_files = len(tasks)
+    for task_set, task_file, async_result in results:
         try:
             value = async_result.get(timeout=timeout)
-            # print(f"Value: {value}")
         except multiprocessing.TimeoutError:
-            print(f"Timeout error occurred for set: {task_set}")
+            print(f"Timeout error occurred for set: {task_file}")
             value = 5
         if value is not None:
             if value == 0:
                 schedulable_by_a += 1
+                schedulable_by_a_shortcut += 1
             elif value == 1:
                 schedulable_by_a += 1
+                schedulable_by_a_simulated += 1
             elif value == 2:
-                infeasible += 1
+                not_schedulable_by_a += 1
+                not_schedulable_by_a_shortcut += 1
             elif value == 3:
-                infeasible += 1
+                not_schedulable_by_a += 1
+                not_schedulable_by_a_simulated += 1
             elif value == 5:
-                total_files -= 1
+                timed_out += 1
+
+            if value == 2 or value == 3:
                 # FIXME: Do something else here! Check if the task set is schedulable by EDF or something
+                feasible_if_scheduler_optimal = check_schedulable_by_optimal(task_set, verbose)  # TODO
+                if feasible_if_scheduler_optimal == 1:
+                    schedulable_by_optimal_but_not_by_a += 1
+                else:
+                    infeasible += 1
+
 
     print(f"Total files considered: {total_files} out of {len(task_files)}")
 
     return {
-        Schedulable.INFEASIBLE: infeasible,
-        Schedulable.NOT_SCHEDULABLE_BY_A: not_schedulable_by_a,
-        Schedulable.SCHEDULABLE: schedulable_by_a
+        Feasibility.FEASIBLE_SHORTCUT: schedulable_by_a_shortcut,
+        Feasibility.FEASIBLE_SIMULATION: schedulable_by_a_simulated,
+        Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: not_schedulable_by_a_shortcut,
+        Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: not_schedulable_by_a_simulated,
+        Feasibility.TIMED_OUT: timed_out,
+        Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A: schedulable_by_optimal_but_not_by_a
     }
 
 def main():
