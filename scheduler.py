@@ -5,7 +5,7 @@ from time import time
 from entities import TaskSet
 from helpers import get_delta_t, get_hyper_period
 
-MAX_ITERATIONS_LIMIT = 200000 # Saves some time by exiting if we already know it's going to take too long
+MAX_ITERATIONS_LIMIT = 500000 # Saves some time by exiting if we already know it's going to take too long
 MAX_SECONDS_LIMIT = 3 # 3 seconds per task set is actually a lot of time!
 
 @dataclass

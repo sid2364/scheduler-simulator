@@ -93,7 +93,7 @@ def get_delta_t(task_set: TaskSet) -> int:
     return get_gcd(list(set(time_period_list)))
 
 """
-Plotter
+Plotters
 """
 def pie_plot_categories(category_frequency_dict):
     print([(Feasibility.get_status_string(k), v) for k, v in category_frequency_dict.items()])
@@ -152,24 +152,26 @@ def calculate_success_rate(schedule_stats):
     success_rate = success / total * 1.0
     return success_rate
 
-# WORK IN PROGRESS
-def plot_success_rate(success_rate_dict, plot_title="Success Rate of Scheduling Algorithms", xlabel="Algorithm", ylabel="Success Rate"):
+
+def plot_success_rate(success_rate_dict, plot_title="Success Rate of Scheduling Algorithms", xlabel="Algorithm", ylabel="Success Rate (%)"):
     """
     Plot the success rates of different scheduling algorithms.
 
-    Input:
+    Parameters:
     - success_rate_dict: dict where keys are algorithm names and values are success rates (0 to 1).
-    - others optional parameters for the plot title, xlabel, and ylabel.
+    - plot_title: Title of the plot.
+    - xlabel: Label for the x-axis.
+    - ylabel: Label for the y-axis.
     """
     algorithms = list(success_rate_dict.keys())
-    success_rates = [rate * 100 for rate in success_rate_dict.values()]  # percentage
+    success_rates = [rate * 100 for rate in success_rate_dict.values()]  # Convert to percentage
 
     colors = list(mcolors.TABLEAU_COLORS.values())[:len(algorithms)]
 
     plt.figure(figsize=(10, 6))
     bars = plt.bar(algorithms, success_rates, color=colors, edgecolor='black')
 
-    # Add percentage on top of the bars
+    # Add percentage labels on top of the bars
     for bar in bars:
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2.0, height, f'{height:.1f}%', ha='center', va='bottom', fontsize=10)
@@ -177,7 +179,111 @@ def plot_success_rate(success_rate_dict, plot_title="Success Rate of Scheduling 
     plt.title(plot_title, fontsize=16, fontweight='bold')
     plt.xlabel(xlabel, fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
-    plt.ylim(0, 100)
+    plt.ylim(-10, 110)  # Since it's a percentage
 
+    plt.tight_layout()
+    plt.show()
+
+def plot_feasibility_ratio_by_tasks(feasibility_dict, utilization, plot_title):
+    """
+    Plot the ratio of feasible task sets according to the number of tasks.
+
+    Parameters:
+    - feasibility_dict: dict with number of tasks as keys and feasibility ratios as values.
+    - utilization: Utilization percentage (e.g., 80).
+    - plot_title: Title for the plot.
+    """
+    tasks = sorted(feasibility_dict.keys())
+    ratios = [feasibility_dict[task] for task in tasks]
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(tasks, ratios, color='skyblue', edgecolor='black')
+
+    plt.xlabel('Number of Tasks', fontsize=14)
+    plt.ylabel('Feasibility Ratio', fontsize=14)
+    plt.title(plot_title, fontsize=16)
+    plt.ylim(-0.2, 1.2)  # Ratio ranges from 0 to 1
+
+    plt.xticks(tasks)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+def plot_success_rate_by_tasks(success_rate_dict, utilization, plot_title):
+    """
+    Plot the success rate of each scheduling algorithm according to the number of tasks.
+
+    Parameters:
+    - success_rate_dict: dict where keys are algorithm names and values are dicts with number of tasks as keys and success rates as values.
+    - utilization: Utilization percentage (e.g., 80).
+    - plot_title: Title for the plot.
+    """
+    # Extract the list of task numbers from the first algorithm's data
+    algorithms = list(success_rate_dict.keys())
+    tasks = sorted(next(iter(success_rate_dict.values())).keys())
+
+    plt.figure(figsize=(12, 8))
+
+    for algorithm, task_success in success_rate_dict.items():
+        success_rates = [task_success[task] * 100 for task in tasks]
+        plt.plot(tasks, success_rates, marker='o', label=algorithm)
+
+    plt.xlabel('Number of Tasks', fontsize=14)
+    plt.ylabel('Success Rate (%)', fontsize=14)
+    plt.title(plot_title, fontsize=16)
+    plt.ylim(-10, 110)
+    plt.legend(title="Algorithms")
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+def plot_feasibility_ratio_by_utilization(feasibility_dict, num_tasks, plot_title):
+    """
+    Plot the ratio of feasible task sets according to utilization.
+
+    Parameters:
+    - feasibility_dict: dict with utilization levels as keys and feasibility ratios as values.
+    - num_tasks: Number of tasks (e.g., 10).
+    - plot_title: Title for the plot.
+    """
+    utilizations = sorted(feasibility_dict.keys())
+    ratios = [feasibility_dict[u] for u in utilizations]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(utilizations, ratios, marker='s', linestyle='-', color='green')
+
+    plt.xlabel('Utilization (%)', fontsize=14)
+    plt.ylabel('Feasibility Ratio', fontsize=14)
+    plt.title(plot_title, fontsize=16)
+    plt.ylim(-0.2, 1.2)
+
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+def plot_success_rate_by_utilization(success_rate_dict, num_tasks, plot_title):
+    """
+    Plot the success rate of each scheduling algorithm according to utilization.
+
+    Parameters:
+    - success_rate_dict: dict where keys are algorithm names and values are dicts with utilization levels as keys and success rates as values.
+    - num_tasks: Number of tasks (e.g., 10).
+    - plot_title: Title for the plot.
+    """
+    algorithms = list(success_rate_dict.keys())
+    utilizations = sorted(next(iter(success_rate_dict.values())).keys())
+
+    plt.figure(figsize=(12, 8))
+
+    for algorithm, util_success in success_rate_dict.items():
+        success_rates = [util_success[u] * 100 for u in utilizations]
+        plt.plot(utilizations, success_rates, marker='^', linestyle='-', label=algorithm)
+
+    plt.xlabel('Utilization (%)', fontsize=14)
+    plt.ylabel('Success Rate (%)', fontsize=14)
+    plt.title(plot_title, fontsize=16)
+    plt.ylim(-10, 110)
+    plt.legend(title="Algorithms")
+    plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
     plt.show()
