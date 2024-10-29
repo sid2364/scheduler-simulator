@@ -124,8 +124,7 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
                 timed_out += 1
 
             if value == 2 or value == 3:
-                # FIXME: Do something else here! Check if the task set is schedulable by EDF or something
-                feasible_if_scheduler_optimal = check_schedulable_by_optimal(task_set, verbose)  # TODO
+                feasible_if_scheduler_optimal = check_schedulable_by_optimal(task_set, verbose)
                 if feasible_if_scheduler_optimal == 1:
                     schedulable_by_optimal_but_not_by_a += 1
                 else:
@@ -175,9 +174,10 @@ def main():
     if path.is_dir():
         schedule_stats = review_task_sets_in_parallel(algorithm, task_set_location, verbose=verbose, force_simulation=force_simulation)
         print(f"Time taken: {int(time() - start_time)} seconds")
-        # stats = review_task_sets(algorithm, task_set_location, verbose)
 
-        pie_plot_categories(schedule_stats)
+        pie_plot_categories(schedule_stats) # Plot all return codes, compare with optimal
+
+        # TODO: also plot just the "success rate" of the algorithm
     else:
         # Left in for debugging purposes
         task_set = parse_task_file(path)
