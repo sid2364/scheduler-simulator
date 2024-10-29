@@ -131,3 +131,53 @@ def pie_plot_categories(category_frequency_dict):
     plt.tight_layout()
 
     plt.show()
+
+"""
+Calculate the success rate of the algorithm
+"""
+def calculate_success_rate(schedule_stats):
+    """
+    Success Rate = (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION) /
+               (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION + NOT_SCHEDULABLE_BY_A_SHORTCUT + NOT_SCHEDULABLE_BY_A_SIMULATION)
+    """
+    success = schedule_stats.get(Feasibility.FEASIBLE_SHORTCUT, 0) + schedule_stats.get(Feasibility.FEASIBLE_SIMULATION, 0)
+
+    failure = schedule_stats.get(Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0) + schedule_stats.get(Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0)
+
+    total = success + failure
+
+    if total == 0:
+        return 0
+
+    success_rate = success / total * 1.0
+    return success_rate
+
+# WORK IN PROGRESS
+def plot_success_rate(success_rate_dict, plot_title="Success Rate of Scheduling Algorithms", xlabel="Algorithm", ylabel="Success Rate"):
+    """
+    Plot the success rates of different scheduling algorithms.
+
+    Input:
+    - success_rate_dict: dict where keys are algorithm names and values are success rates (0 to 1).
+    - others optional parameters for the plot title, xlabel, and ylabel.
+    """
+    algorithms = list(success_rate_dict.keys())
+    success_rates = [rate * 100 for rate in success_rate_dict.values()]  # percentage
+
+    colors = list(mcolors.TABLEAU_COLORS.values())[:len(algorithms)]
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(algorithms, success_rates, color=colors, edgecolor='black')
+
+    # Add percentage on top of the bars
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2.0, height, f'{height:.1f}%', ha='center', va='bottom', fontsize=10)
+
+    plt.title(plot_title, fontsize=16, fontweight='bold')
+    plt.xlabel(xlabel, fontsize=14)
+    plt.ylabel(ylabel, fontsize=14)
+    plt.ylim(0, 100)
+
+    plt.tight_layout()
+    plt.show()

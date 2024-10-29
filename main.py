@@ -4,7 +4,7 @@ import multiprocessing
 from time import time
 import concurrent.futures
 
-from helpers import pie_plot_categories, Feasibility
+from helpers import pie_plot_categories, calculate_success_rate, plot_success_rate, Feasibility
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 from parse_tasks import parse_task_file
 
@@ -130,7 +130,6 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
                 else:
                     infeasible += 1
 
-
     print(f"Total files considered: {total_files} out of {len(task_files)}")
 
     return {
@@ -139,50 +138,41 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
         Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: not_schedulable_by_a_shortcut,
         Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: not_schedulable_by_a_simulated,
         Feasibility.TIMED_OUT: timed_out,
-        Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A: schedulable_by_optimal_but_not_by_a
+        Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A: schedulable_by_optimal_but_not_by_a,
+        Feasibility.INFEASIBLE: infeasible
     }
 
-def main():
-    # Set up command line argument parser
-    parser = argparse.ArgumentParser(description='Select a scheduling algorithm and specify a task set file.')
 
-    # Add the scheduling algorithm argument (mandatory)
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Select a scheduling algorithm and specify a task set file.')
     parser.add_argument('algorithm', choices=['rm', 'dm', 'audsley', 'edf', 'rr'],
                         help='Scheduling algorithm to use: dm, audsley, edf, or rr.')
+    parser.add_argument('task_set_location', type=str, help='Path to the task set file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help="Enable verbose mode for detailed output.")
+    parser.add_argument('-f', '--force-simulation', action='store_true', help="Force simulation even if the utilization is less than 69%.")
+    return parser.parse_args()
 
-    # Add the task set file argument (mandatory)
-    parser.add_argument('task_set_file', type=str,
-                        help='Path to the task set file.')
-
-    # Optional flag for verbose mode
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help="Enable verbose mode for detailed output.")
-
-    # Optional flag to force simulation
-    parser.add_argument('-f', '--force-simulation', action='store_true',
-                        help="Force simulation even if the utilization is less than 69%.")
-
-    task_set_location = parser.parse_args().task_set_file
-    algorithm = parser.parse_args().algorithm.lower()
-    verbose = parser.parse_args().verbose
-    force_simulation = parser.parse_args().force_simulation
-
+def main():
+    args = parse_arguments()
 
     start_time = time()
+
     # Check if the address corresponds to a single dataset or if it is a folder containing many
-    path = Path(task_set_location)
+    path = Path(args.task_set_location)
     if path.is_dir():
-        schedule_stats = review_task_sets_in_parallel(algorithm, task_set_location, verbose=verbose, force_simulation=force_simulation)
+        # Multiple task sets
+        schedule_stats = review_task_sets_in_parallel(args.algorithm, args.task_set_location, verbose=args.verbose, force_simulation=args.force_simulation)
         print(f"Time taken: {int(time() - start_time)} seconds")
 
         pie_plot_categories(schedule_stats) # Plot all return codes, compare with optimal
-
-        # TODO: also plot just the "success rate" of the algorithm
+        print(f"Success Rate: {calculate_success_rate(schedule_stats) * 100}%")
     else:
-        # Left in for debugging purposes
+        # Single task set
         task_set = parse_task_file(path)
-        review_task_set(algorithm, task_set, verbose=verbose, force_simulation=force_simulation, task_file=path)
+        ret_val = review_task_set(args.algorithm, task_set, verbose=args.verbose, force_simulation=args.force_simulation, task_file=path)
         print(f"Time taken: {int(time() - start_time)} seconds")
+
+        exit(ret_val)
 
 if __name__ == "__main__":
     main()

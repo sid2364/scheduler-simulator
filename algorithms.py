@@ -260,14 +260,14 @@ class RoundRobin(Scheduler):
                 return t
 
     def is_schedulable(self):
-        # Round Robin is not optimal, so we have to simulate the execution
+        # Round Robin is not optimal (at all), so we have to simulate the execution
         ret_val = self.schedule_taskset()
         if ret_val == 1:
-            # The task set is schedulable and you had to simulate the execution.
-            return 0
+            # The task set is schedulable, and you had to simulate the execution.
+            return 1
         elif ret_val == 0:
-            # The task set is not schedulable and you had to simulate the execution.
-            return 2
+            # The task set is not schedulable, and you had to simulate the execution.
+            return 3
         elif ret_val == 5:
             # Took too long to simulate the execution, exclude the task set.
             return 5
