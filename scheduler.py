@@ -3,10 +3,11 @@ from dataclasses import dataclass
 from time import time
 
 from entities import TaskSet
-from helpers import get_delta_t, get_hyper_period
+from helpers import get_delta_t, get_time_max
 
-MAX_ITERATIONS_LIMIT = 500000 # Saves some time by exiting if we already know it's going to take too long
-MAX_SECONDS_LIMIT = 3 # 3 seconds per task set is actually a lot of time!
+MAX_ITERATIONS_LIMIT = 500000  # Saves some time by exiting if we already know it's going to take too long
+MAX_SECONDS_LIMIT = 3  # 3 seconds per task set is actually a lot of time!
+
 
 @dataclass
 class Scheduler(ABC):
@@ -15,20 +16,23 @@ class Scheduler(ABC):
     """
     Initialize the scheduler with the task set
     """
+
     def __init__(self, task_set: TaskSet, verbose=False, force_simulation=False):
         self.task_set = task_set
         self.verbose = verbose
-        self.print = lambda *args: print(*args) if self.verbose else None # Print only if verbose is True
+        self.print = lambda *args: print(*args) if self.verbose else None  # Print only if verbose is True
         self.force_simulation = force_simulation
         self.__post_init__()
 
     @abstractmethod
     def __post_init__(self):
         pass
+
     """
     Abstract method to get the top priority task, based on the scheduling algorithm
     Should be implemented in the child classes!
     """
+
     @abstractmethod
     def get_top_priority(self, active_tasks):
         pass
@@ -42,6 +46,7 @@ class Scheduler(ABC):
         2 The task set is not schedulable and you had to simulate the execution.
         3 The task set is not schedulable and you took a shortcut
     """
+
     @abstractmethod
     def is_schedulable(self):
         pass
@@ -60,15 +65,15 @@ class Scheduler(ABC):
         0 if a deadline is missed
 
     """
+
     def schedule_taskset(self):
         t = 0
         time_step = get_delta_t(self.task_set)
-        o_max = max([task.offset for task in self.task_set.tasks])
-        time_max = o_max + 2 * get_hyper_period(self.task_set) # Omax + 2 * Hyperperiod
+        time_max = get_time_max(self.task_set)
         # print(f"Time max: {time_max}")
 
         # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
-        if time_max > MAX_ITERATIONS_LIMIT:
+        if self.is_task_set_too_long():
             # Too long to simulate!
             return 5
 
@@ -147,3 +152,7 @@ class Scheduler(ABC):
             t += time_step
 
         return 1  # All jobs finished on time till time_max
+
+    def is_task_set_too_long(self):
+        time_max = get_time_max(self.task_set)
+        return time_max > MAX_ITERATIONS_LIMIT

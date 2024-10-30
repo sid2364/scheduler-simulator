@@ -80,6 +80,11 @@ def get_hyper_period(task_set: TaskSet) -> int:
     time_period_list = [task.period for task in task_set.tasks]
     return get_lcm(list(set(time_period_list)))
 
+def get_time_max(task_set: TaskSet) -> int:
+    # Calculate the maximum time for simulation
+    o_max = max([task.offset for task in task_set.tasks])
+    return o_max + 2 * get_hyper_period(task_set)
+
 def get_delta_t(task_set: TaskSet) -> int:
     # Calculate the greatest common divisor of the time periods of the tasks
     time_period_list = []

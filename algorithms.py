@@ -229,6 +229,13 @@ class EarliestDeadlineFirst(Scheduler):
     def is_schedulable(self):
         # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
         # There is no need to simulate the execution, ever!
+
+        # BUT since we should not include task sets if they take too long, we will exclude this if lcm of periods is too large
+        # just as we exclude other task sets for other algorithms, this allows us to compare the algorithms fairly
+        if self.is_task_set_too_long():
+            return 5
+
+        # If not, then we can just check the utilisation
         if is_utilisation_lte_1(self.task_set):
             # The task set is schedulable, and you took a shortcut
             return 1
