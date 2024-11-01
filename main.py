@@ -52,19 +52,19 @@ def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, 
 
     task_scheduler = get_scheduler(algorithm, task_set, verbose, force_simulation)
 
-    ret_val = task_scheduler.is_schedulable()
+    scheduler_return_val = task_scheduler.is_schedulable()
     if verbose:
-        if ret_val == 0:
+        if scheduler_return_val == 0:
             print(f"The task set {task_file} is schedulable and you had to simulate the execution.")
-        elif ret_val == 1:
+        elif scheduler_return_val == 1:
             print(f"The task set {task_file} is schedulable and you took a shortcut.")
-        elif ret_val == 2:
+        elif scheduler_return_val == 2:
             print(f"The task set {task_file} is not schedulable and you had to simulate the execution.")
-        elif ret_val == 3:
+        elif scheduler_return_val == 3:
             print(f"The task set {task_file} is not schedulable and you took a shortcut.")
-        elif ret_val == 5:
+        elif scheduler_return_val == 4:
             print(f"Took too long to simulate the execution for {task_file}, exclude the task set.")
-    return ret_val
+    return scheduler_return_val
 
 """
 Evaluate multiple task sets in a folder in parallel!
@@ -106,21 +106,21 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
             value = async_result.get(timeout=timeout)
         except multiprocessing.TimeoutError:
             print(f"Timeout error occurred for set: {task_file}")
-            value = 5
+            value = 4
         if value is not None:
             if value == 0:
                 schedulable_by_a += 1
-                schedulable_by_a_shortcut += 1
+                schedulable_by_a_simulated += 1
             elif value == 1:
                 schedulable_by_a += 1
-                schedulable_by_a_simulated += 1
+                schedulable_by_a_shortcut += 1
             elif value == 2:
                 not_schedulable_by_a += 1
-                not_schedulable_by_a_shortcut += 1
+                not_schedulable_by_a_simulated += 1
             elif value == 3:
                 not_schedulable_by_a += 1
-                not_schedulable_by_a_simulated += 1
-            elif value == 5:
+                not_schedulable_by_a_shortcut += 1
+            elif value == 4:
                 timed_out += 1
 
             if value == 2 or value == 3:
@@ -171,7 +171,7 @@ def main():
         task_set = parse_task_file(path)
         ret_val = review_task_set(args.algorithm, task_set, verbose=args.verbose, force_simulation=args.force_simulation, task_file=path)
         print(f"Time taken: {int(time() - start_time)} seconds")
-
+        print(f"Return value: {ret_val}")
         exit(ret_val)
 
 if __name__ == "__main__":

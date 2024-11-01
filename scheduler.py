@@ -6,7 +6,7 @@ from entities import TaskSet
 from helpers import get_delta_t, get_time_max
 
 MAX_ITERATIONS_LIMIT = 500000  # Saves some time by exiting if we already know it's going to take too long
-MAX_SECONDS_LIMIT = 3  # 3 seconds per task set is actually a lot of time!
+MAX_SECONDS_LIMIT = 5  # 5 seconds per task set is actually a lot of time!
 
 
 @dataclass
@@ -16,7 +16,6 @@ class Scheduler(ABC):
     """
     Initialize the scheduler with the task set
     """
-
     def __init__(self, task_set: TaskSet, verbose=False, force_simulation=False):
         self.task_set = task_set
         self.verbose = verbose
@@ -32,7 +31,6 @@ class Scheduler(ABC):
     Abstract method to get the top priority task, based on the scheduling algorithm
     Should be implemented in the child classes!
     """
-
     @abstractmethod
     def get_top_priority(self, active_tasks):
         pass
@@ -46,13 +44,12 @@ class Scheduler(ABC):
         2 The task set is not schedulable and you had to simulate the execution.
         3 The task set is not schedulable and you took a shortcut
     """
-
     @abstractmethod
     def is_schedulable(self):
         pass
 
     """
-    Main scheduling algorithm
+    Main scheduling algorithm:
         1. Check for deadline misses
         2. Check if the previous cycle job is finished, if so, remove it from the active tasks
         3. Check for new job releases
@@ -60,12 +57,12 @@ class Scheduler(ABC):
             This will depend on the scheduling algorithm
         5. Exclude the task set if the simulation takes too long
         
-    Return values:
-        1 if all jobs finish on time till time_max
+    Return values: (This is NOT the same as is_schedulable() return codes!)
         0 if a deadline is missed
+        1 if all jobs finish on time till time_max
+        2 if the simulation takes too long
 
     """
-
     def schedule_taskset(self):
         t = 0
         time_step = get_delta_t(self.task_set)
@@ -75,7 +72,7 @@ class Scheduler(ABC):
         # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
         if self.is_task_set_too_long():
             # Too long to simulate!
-            return 5
+            return 2
 
         # Start a timer so we only simulate for a limited time!
         time_started = time()
@@ -91,7 +88,7 @@ class Scheduler(ABC):
             # Check if we're taking too long to run this function
             if time() - time_started > MAX_SECONDS_LIMIT:
                 self.print(f"Took more than {MAX_SECONDS_LIMIT}, timing out!")
-                return 5
+                return 2
 
             # Check for deadline misses
             self.print(f"Time {t}-{t + time_step}:")
@@ -155,4 +152,5 @@ class Scheduler(ABC):
 
     def is_task_set_too_long(self):
         time_max = get_time_max(self.task_set)
+        #print(f"Time max: {time_max}")
         return time_max > MAX_ITERATIONS_LIMIT

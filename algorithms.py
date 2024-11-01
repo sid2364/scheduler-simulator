@@ -29,15 +29,15 @@ class RateMonotonic(Scheduler):
             return 3
 
         schedulable = self.schedule_taskset()
-        if schedulable==1:
+        if schedulable == 1:
             # The task set is schedulable, had to simulate the execution
             return 0
-        elif schedulable==0:
+        elif schedulable == 0:
             # The task set is not schedulable, had to simulate the execution
             return 2
-        elif schedulable==5:
+        elif schedulable == 2:
             # Took too long to simulate the execution, exclude the task set
-            return 5
+            return 4
 
 """
 Deadline Monotonic
@@ -73,15 +73,13 @@ class DeadlineMonotonic(Scheduler):
         elif schedulable == 0:
             # The task set is not schedulable after simulation
             return 2
-        elif schedulable == 5:
+        elif schedulable == 2:
             # Simulation took too long, exclude the task set
-            return 5
+            return 4
 
 """
 Audsley
 """
-
-
 class Audsley(Scheduler):
     def __post_init__(self):
         self.sorted_tasks = self.task_set.tasks  # Start without sorting
@@ -114,18 +112,18 @@ class Audsley(Scheduler):
         if result == 1:
             # The task set is schedulable after simulation
             return 0
-        elif result == 2:
+        elif result == 0:
             # The task set is not schedulable after simulation
             return 2
-        elif result == 5:
+        elif result == 2:
             # Simulation took too long, exclude the task set
-            return 5
+            return 4
 
 
     """
     Try to assign the lowest priority to a task and recurse with the remaining tasks till we find a schedulable set
     
-    Returns 1 if the task set is schedulable, 2 if not schedulable, 5 if the simulation took too long
+    Returns 0 if not schedulable, 1 if the task set is schedulable, 2 if the simulation took too long
     """
     def try_assign_lowest_priority(self, tasks):
         if not tasks:
@@ -150,13 +148,13 @@ class Audsley(Scheduler):
                 # return self.try_assign_lowest_priority(remaining_tasks)
                 """
                 return 1
-            elif simulation_result == 5:
+            elif simulation_result == 2:
                 # If simulation took too long, exclude the task set
-                return 5
+                return 4
             # If not schedulable, reset priority and try the next task
             task.priority = 0
 
-        return 2  # Not schedulable if no task can be assigned
+        return 0  # Not schedulable if no task can be assigned
 
     """
     Simulates scheduling with param 'task' at the lowest priority.
@@ -217,14 +215,7 @@ class EarliestDeadlineFirst(Scheduler):
     we can tell if it's schedulable by the utilisation
     """
     def get_top_priority(self, active_tasks):
-        if len(active_tasks) == 0:
-            return None
-
-        # Filter out the active tasks to get the tasks that are not finished
-        sorted_tasks = sorted(active_tasks, key=lambda x: x.get_first_job().deadline)
-        if sorted_tasks is None:
-            return None
-        return sorted_tasks[0]
+        raise NotImplementedError("Earliest Deadline First does not use get_top_priority(), you should never see this!")
 
     def is_schedulable(self):
         # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
@@ -233,7 +224,7 @@ class EarliestDeadlineFirst(Scheduler):
         # BUT since we should not include task sets if they take too long, we will exclude this if lcm of periods is too large
         # just as we exclude other task sets for other algorithms, this allows us to compare the algorithms fairly
         if self.is_task_set_too_long():
-            return 5
+            return 4
 
         # If not, then we can just check the utilisation
         if is_utilisation_lte_1(self.task_set):
@@ -267,14 +258,14 @@ class RoundRobin(Scheduler):
                 return t
 
     def is_schedulable(self):
-        # Round Robin is not optimal (at all), so we have to simulate the execution
+        # Round Robin is not optimal (at all), so we have to simulate the execution, no shortcuts here
         ret_val = self.schedule_taskset()
         if ret_val == 1:
             # The task set is schedulable, and you had to simulate the execution.
-            return 1
+            return 0
         elif ret_val == 0:
             # The task set is not schedulable, and you had to simulate the execution.
-            return 3
-        elif ret_val == 5:
+            return 2
+        elif ret_val == 2:
             # Took too long to simulate the execution, exclude the task set.
-            return 5
+            return 4
