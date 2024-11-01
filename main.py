@@ -4,9 +4,10 @@ import multiprocessing
 from time import time
 import concurrent.futures
 
-from helpers import pie_plot_categories, calculate_success_rate, plot_success_rate, Feasibility
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 from parse_tasks import parse_task_file
+from helpers import calculate_success_rate, Feasibility
+from plotters import plot_primary_categories, plot_non_schedulable_breakdown_grouped
 
 OPTIMAL_ALGORITHM = "edf"
 
@@ -122,6 +123,7 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
                 not_schedulable_by_a_shortcut += 1
             elif value == 4:
                 timed_out += 1
+                total_files -= 1
 
             if value == 2 or value == 3:
                 feasible_if_scheduler_optimal = check_schedulable_by_optimal(task_set, verbose)
@@ -160,11 +162,12 @@ def main():
     # Check if the address corresponds to a single dataset or if it is a folder containing many
     path = Path(args.task_set_location)
     if path.is_dir():
-        # Multiple task sets
+        # Multiple task sets from a folder
         schedule_stats = review_task_sets_in_parallel(args.algorithm, args.task_set_location, verbose=args.verbose, force_simulation=args.force_simulation)
         print(f"Time taken: {int(time() - start_time)} seconds")
 
-        pie_plot_categories(schedule_stats) # Plot all return codes, compare with optimal
+        plot_primary_categories(schedule_stats) # Plot only the primary categories
+        plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper()) # Plot the non-schedulable categories with optimal
         print(f"Success Rate: {calculate_success_rate(schedule_stats) * 100}%")
     else:
         # Single task set

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from time import time
 
 from entities import TaskSet
-from helpers import get_delta_t, get_time_max
+from helpers import get_delta_t, get_feasibility_interval
 
 MAX_ITERATIONS_LIMIT = 500000  # Saves some time by exiting if we already know it's going to take too long
 MAX_SECONDS_LIMIT = 5  # 5 seconds per task set is actually a lot of time!
@@ -49,6 +49,24 @@ class Scheduler(ABC):
         pass
 
     """
+    Get the feasibility interval for the task set, either with feasibility interval or busy period if that is too long
+    
+    Differs based on the scheduling algorithm!
+    """
+    @abstractmethod
+    def get_simulation_interval(self):
+        pass
+
+    """
+    Check if the simulation will take too long
+    """
+    def is_task_set_too_long(self, time_max=None):
+        if time_max is None:
+            time_max = get_feasibility_interval(self.task_set)
+        #print(f"Time max: {time_max}")
+        return time_max > MAX_ITERATIONS_LIMIT
+
+    """
     Main scheduling algorithm:
         1. Check for deadline misses
         2. Check if the previous cycle job is finished, if so, remove it from the active tasks
@@ -66,12 +84,18 @@ class Scheduler(ABC):
     def schedule_taskset(self):
         t = 0
         time_step = get_delta_t(self.task_set)
-        time_max = get_time_max(self.task_set)
-        # print(f"Time max: {time_max}")
+
+        """
+        time_max = get_feasibility_interval(self.task_set)
 
         # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
         if self.is_task_set_too_long():
             # Too long to simulate!
+            return 2
+        """
+
+        time_max = self.get_simulation_interval()
+        if self.is_task_set_too_long(time_max):
             return 2
 
         # Start a timer so we only simulate for a limited time!
@@ -149,8 +173,3 @@ class Scheduler(ABC):
             t += time_step
 
         return 1  # All jobs finished on time till time_max
-
-    def is_task_set_too_long(self):
-        time_max = get_time_max(self.task_set)
-        #print(f"Time max: {time_max}")
-        return time_max > MAX_ITERATIONS_LIMIT
