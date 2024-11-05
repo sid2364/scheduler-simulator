@@ -39,6 +39,7 @@ def utilisation(task_set: TaskSet) -> bool:
     utilization_factor = 0
     for task in task_set.tasks:
         utilization_factor += task.computation_time / task.period
+    # print(f"Utilization factor: {utilization_factor}")
     return utilization_factor
 
 def is_utilisation_lte_69(task_set: TaskSet) -> bool:

@@ -36,7 +36,7 @@ class Scheduler(ABC):
         pass
 
     """
-    Check if the task set is schedulable
+    This is the main method that determines whether the algorithm can schedule the task set or not
     
     Return values:
         0 The task set is schedulable and you had to simulate the execution.
@@ -45,7 +45,7 @@ class Scheduler(ABC):
         3 The task set is not schedulable and you took a shortcut
     """
     @abstractmethod
-    def is_schedulable(self):
+    def is_feasible(self):
         pass
 
     """
@@ -67,7 +67,7 @@ class Scheduler(ABC):
         return time_max > MAX_ITERATIONS_LIMIT
 
     """
-    Main scheduling algorithm:
+    Main (simulation) scheduling algorithm:
         1. Check for deadline misses
         2. Check if the previous cycle job is finished, if so, remove it from the active tasks
         3. Check for new job releases
@@ -81,7 +81,7 @@ class Scheduler(ABC):
         2 if the simulation takes too long
 
     """
-    def schedule_taskset(self):
+    def simulate_taskset(self):
         t = 0
         time_step = get_delta_t(self.task_set)
 
@@ -151,7 +151,7 @@ class Scheduler(ABC):
                 continue
 
             # self.print(f"Active tasks: {[f"T{task.task_id}" for task in active_tasks]}")
-            # self.print(f"Highest priority task: T{highest_priority_task.task_id}")
+            self.print(f"Highest priority task: T{highest_priority_task.task_id}")
             current_cycle_job = highest_priority_task.get_first_job()
             if current_cycle_job is None:
                 self.print(f"No jobs to schedule at time {t}, idle time!\n")

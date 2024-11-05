@@ -3,49 +3,6 @@ from helpers import is_utilisation_lte_1, is_utilisation_within_ll_bound, get_fe
 from scheduler import Scheduler
 
 """
-Rate Monotonic
-"""
-class RateMonotonic(Scheduler):
-    def __post_init__(self):
-        self.sorted_tasks = sorted(self.task_set.tasks, key=lambda x: x.period)
-
-    def get_top_priority(self, active_tasks):
-        if len(active_tasks) == 0:
-            return None
-
-        # Filter out the active tasks to get the tasks that are not finished
-        sorted_tasks = [task for task in self.sorted_tasks if task in active_tasks]
-        if sorted_tasks is None:
-            return None
-        return sorted_tasks[0]
-
-    def get_simulation_interval(self):
-        time_max = get_feasibility_interval(self.task_set)
-        if self.is_task_set_too_long(time_max):
-            return get_busy_period(self.task_set)
-        return time_max
-
-    def is_schedulable(self):
-        if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation: # only for RM/DM
-            # The task set is schedulable, and you took a shortcut
-            return 1
-
-        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
-            # The task set is not schedulable and you took a shortcut
-            return 3
-
-        schedulable = self.schedule_taskset()
-        if schedulable == 1:
-            # The task set is schedulable, had to simulate the execution
-            return 0
-        elif schedulable == 0:
-            # The task set is not schedulable, had to simulate the execution
-            return 2
-        elif schedulable == 2:
-            # Took too long to simulate the execution, exclude the task set
-            return 4
-
-"""
 Deadline Monotonic
 """
 class DeadlineMonotonic(Scheduler):
@@ -68,7 +25,7 @@ class DeadlineMonotonic(Scheduler):
             return get_busy_period(self.task_set)
         return time_max
 
-    def is_schedulable(self):
+    def is_feasible(self):
         # Use utilization-based shortcut (DM has the same utilization threshold as RM)
         if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation:  # utilization check for DM
             return 1  # Schedulable by utilization shortcut
@@ -77,7 +34,7 @@ class DeadlineMonotonic(Scheduler):
             return 3  # Not schedulable due to utilization exceeding 1
 
         # Simulate scheduling tasks within the feasibility interval
-        schedulable = self.schedule_taskset()
+        schedulable = self.simulate_taskset()
 
         if schedulable == 1:
             # The task set is schedulable after simulation
@@ -87,6 +44,121 @@ class DeadlineMonotonic(Scheduler):
             return 2
         elif schedulable == 2:
             # Simulation took too long, exclude the task set
+            return 4
+
+
+"""
+Earliest Deadline First
+"""
+class EarliestDeadlineFirst(Scheduler):
+    def __post_init__(self):
+        pass
+
+    """
+    get_top_priority() won't be used because we never get to the point of scheduling, 
+    we can tell if it's schedulable by the utilisation
+    """
+    def get_top_priority(self, active_tasks):
+        raise NotImplementedError("Earliest Deadline First does not use get_top_priority(), you should never see this!")
+
+    def get_simulation_interval(self):
+        raise NotImplementedError("Earliest Deadline First does not use get_simulation_interval(), you should never see this!")
+
+    def is_feasible(self):
+        # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
+        # There is no need to simulate the execution, ever!
+
+        # BUT since we should not include task sets if they take too long, we will exclude this if lcm of periods is too large
+        # just as we exclude other task sets for other algorithms, this allows us to compare the algorithms fairly
+        # if self.is_task_set_too_long():
+        #     return 4
+
+        # If not, then we can just check the utilisation
+        if is_utilisation_lte_1(self.task_set):
+            # The task set is schedulable, and you took a shortcut
+            return 1
+        else:
+            # The task set is not schedulable and you took a shortcut
+            return 3
+
+"""
+Round Robin
+"""
+class RoundRobin(Scheduler):
+    def __post_init__(self):
+        self.task_queue = sorted(self.task_set.tasks, key=lambda x: x.deadline)
+        # Initialise the queue to keep track of incoming tasks, can initially be sorted by deadline
+        # This queue is not necessarily a priority queue, it's just a representation of the order the tasks will execute in
+
+    def get_top_priority(self, active_tasks):
+        # Round Robin is a preemptive algorithm, so we just return the first task in the list
+        if len(active_tasks) == 0:
+            return None
+        # Iterate through job queue and return the first task which is active
+        for task in self.task_queue:
+            if task in active_tasks:
+                self.task_queue.remove(task) # Remove from the "front"
+                self.task_queue.append(task) # Add to the "back"
+                return task
+
+    def get_simulation_interval(self):
+        # Can't use busy period here
+        return get_feasibility_interval(self.task_set)
+
+    def is_feasible(self):
+        # Round Robin is not optimal (at all), so we have to simulate the execution, no shortcuts here
+        ret_val = self.simulate_taskset()
+        if ret_val == 1:
+            # The task set is schedulable, and you had to simulate the execution.
+            return 0
+        elif ret_val == 0:
+            # The task set is not schedulable, and you had to simulate the execution.
+            return 2
+        elif ret_val == 2:
+            # Took too long to simulate the execution, exclude the task set.
+            return 4
+
+"""
+Rate Monotonic
+"""
+class RateMonotonic(Scheduler):
+    def __post_init__(self):
+        self.sorted_tasks = sorted(self.task_set.tasks, key=lambda x: x.period)
+
+    def get_top_priority(self, active_tasks):
+        if len(active_tasks) == 0:
+            return None
+
+        # Filter out the active tasks to get the tasks that are not finished
+        sorted_tasks = [task for task in self.sorted_tasks if task in active_tasks]
+        if sorted_tasks is None:
+            return None
+        return sorted_tasks[0]
+
+    def get_simulation_interval(self):
+        time_max = get_feasibility_interval(self.task_set)
+        if self.is_task_set_too_long(time_max):
+            return get_busy_period(self.task_set)
+        return time_max
+
+    def is_feasible(self):
+        if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation: # only for RM/DM
+            # The task set is schedulable, and you took a shortcut
+            return 1
+
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
+            # The task set is not schedulable and you took a shortcut
+            return 3
+
+        schedulable = self.simulate_taskset()
+        if schedulable == 1:
+            # The task set is schedulable, had to simulate the execution
+            return 0
+        elif schedulable == 0:
+            # The task set is not schedulable, had to simulate the execution
+            return 2
+        elif schedulable == 2:
+            # Took too long to simulate the execution, exclude the task set
             return 4
 
 """
@@ -110,7 +182,7 @@ class Audsley(Scheduler):
     def get_simulation_interval(self):
         raise NotImplementedError("Audsley does not directly (!) use get_simulation_interval(), you should never see this!")
 
-    def is_schedulable(self):
+    def is_feasible(self):
         # Try assigning priorities from lowest to highest using Audsley's algorithm, but first:
         if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation:
             return 1  # Schedulable by utilization shortcut
@@ -188,7 +260,7 @@ class Audsley(Scheduler):
 
         temp_scheduler = _CustomPriorityAudsley(custom_priority_task_set)
 
-        schedulable = temp_scheduler.schedule_taskset()
+        schedulable = temp_scheduler.simulate_taskset()
         self.print(f"Simulation result: {schedulable}")
         return schedulable
 
@@ -212,7 +284,7 @@ class _CustomPriorityAudsley(Scheduler):
         # but also slightly more complex than just using feasibility interval
         return get_feasibility_interval(self.task_set)
 
-    def is_schedulable(self):
+    def is_feasible(self):
         if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation:  # utilization check for DM
             return 1  # Schedulable by utilization shortcut
 
@@ -220,79 +292,5 @@ class _CustomPriorityAudsley(Scheduler):
             return 3  # Not schedulable due to utilization exceeding 1
 
         # Custom scheduler just runs based on the assigned priorities
-        return self.schedule_taskset()
+        return self.simulate_taskset()
 
-
-"""
-Earliest Deadline First
-"""
-class EarliestDeadlineFirst(Scheduler):
-    def __post_init__(self):
-        pass
-
-    """
-    get_top_priority() won't be used because we never get to the point of scheduling, 
-    we can tell if it's schedulable by the utilisation
-    """
-    def get_top_priority(self, active_tasks):
-        raise NotImplementedError("Earliest Deadline First does not use get_top_priority(), you should never see this!")
-
-    def get_simulation_interval(self):
-        raise NotImplementedError("Earliest Deadline First does not use get_simulation_interval(), you should never see this!")
-
-    def is_schedulable(self):
-        # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
-        # There is no need to simulate the execution, ever!
-
-        # BUT since we should not include task sets if they take too long, we will exclude this if lcm of periods is too large
-        # just as we exclude other task sets for other algorithms, this allows us to compare the algorithms fairly
-        # if self.is_task_set_too_long():
-        #     return 4
-
-        # If not, then we can just check the utilisation
-        if is_utilisation_lte_1(self.task_set):
-            # The task set is schedulable, and you took a shortcut
-            return 1
-        else:
-            # The task set is not schedulable and you took a shortcut
-            return 3
-
-
-"""
-Round Robin
-"""
-class RoundRobin(Scheduler):
-    def __post_init__(self):
-        self.task_queue = self.task_set.tasks
-        # Initialise the queue to keep track of incoming tasks
-        # This queue is not necessarily a priority queue, it's just a representation of the order he tasks will execute in
-        pass
-
-    def get_top_priority(self, active_tasks):
-        # Round Robin is a preemptive algorithm, so we just return the first task in the list
-        if len(active_tasks) == 0:
-            return None
-        self.print("Queue: ", [t.task_id for t in self.task_queue])
-        # Iterate through job_queue and return the first task which is active
-        for task in self.task_queue:
-            if task in active_tasks:
-                t = self.task_queue.pop(0) # Remove from the "front"
-                self.task_queue.append(t) # Add to the "back"
-                return t
-
-    def get_simulation_interval(self):
-        # Can't use busy period here
-        return get_feasibility_interval(self.task_set)
-
-    def is_schedulable(self):
-        # Round Robin is not optimal (at all), so we have to simulate the execution, no shortcuts here
-        ret_val = self.schedule_taskset()
-        if ret_val == 1:
-            # The task set is schedulable, and you had to simulate the execution.
-            return 0
-        elif ret_val == 0:
-            # The task set is not schedulable, and you had to simulate the execution.
-            return 2
-        elif ret_val == 2:
-            # Took too long to simulate the execution, exclude the task set.
-            return 4

@@ -21,17 +21,26 @@ def plot_primary_categories(category_frequency_dict):
     explode = [0.05] * len(sizes)
 
     plt.figure(figsize=(8, 6))
-    wedges, texts, autotexts = plt.pie(sizes, explode=explode, colors=colors,
-                                       autopct="%1.1f%%", shadow=True, startangle=140,
+    wedges, texts, autotexts = plt.pie(sizes,
+                                       explode=explode,
+                                       colors=colors,
+                                       autopct="%1.1f%%",
+                                       shadow=True,
+                                       startangle=140,
                                        wedgeprops={"edgecolor": "black"})
 
     plt.title("Schedulability Categories", fontsize=14, fontweight="bold")
     plt.axis("equal")
-    plt.legend(wedges, labels, title="Categories", loc="upper right",
+
+    legend_labels = [f"{label}: {count}" for label, count in zip(labels, sizes)]
+    plt.legend(wedges, legend_labels, title="Categories", loc="upper right",
                bbox_to_anchor=(1, 1), fontsize=10)
     plt.tight_layout()
     plt.show()
 
+"""
+Show how the non-schedulable task sets compare with EDF
+"""
 def plot_non_schedulable_breakdown_grouped(category_frequency_dict,
                                                       target_algorithm_name="Target Algorithm"):
     # Define the simplified categories
@@ -79,12 +88,9 @@ def plot_non_schedulable_breakdown_grouped(category_frequency_dict,
     plt.show()
 
 """
-Plots for the report, comparing multiple algorithms
+Plots for the report, just for EDF!
 """
 def plot_feasibility_ratio(feasibility_dict, plot_title, xlabel):
-    """
-    Plot the ratio of feasible task sets according to the number of tasks. This will just be for EDF!
-    """
     tasks = sorted(feasibility_dict.keys())
     ratios = [feasibility_dict[task] for task in tasks]
 
@@ -101,10 +107,10 @@ def plot_feasibility_ratio(feasibility_dict, plot_title, xlabel):
     plt.tight_layout()
     plt.show()
 
+"""
+Plots success rates of each algorithm as a line chart, with utilization on the x-axis and success rate on the y-axis.
+"""
 def plot_success_rate(success_rates, plot_title, xlabel):
-    """
-    Plots success rates of each algorithm as a line chart, with utilization on the x-axis and success rate on the y-axis.
-    """
     plt.figure(figsize=(10, 6))
 
     # Plot success rate for each algorithm

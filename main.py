@@ -15,6 +15,7 @@ OPTIMAL_ALGORITHM = "edf"
 Return an instance of the scheduler based on the algorithm selected
 """
 def get_scheduler(algorithm, task_set, verbose, force_simulation):
+    algorithm = algorithm.lower()
     if algorithm == 'rm':
         return RateMonotonic(task_set, verbose, force_simulation)
     elif algorithm == 'dm':
@@ -26,7 +27,7 @@ def get_scheduler(algorithm, task_set, verbose, force_simulation):
     elif algorithm == 'rr':
         return RoundRobin(task_set, verbose, force_simulation)
     else:
-        print("Invalid algorithm selected.") # Won't happen because of argparse but why not
+        print("Invalid algorithm selected!") # Won't happen because of argparse but why not
         return None
 
 
@@ -41,7 +42,7 @@ Check if a task set is schedulable by the optimal algorithm
 """
 def check_schedulable_by_optimal(task_set, verbose=False, force_simulation=False):
     optimal_scheduler = get_optimal_scheduler(task_set, verbose, force_simulation)
-    return optimal_scheduler.is_schedulable()
+    return optimal_scheduler.is_feasible()
 
 """
 Check if a task set is schedulable by the specified algorithm
@@ -53,7 +54,7 @@ def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, 
 
     task_scheduler = get_scheduler(algorithm, task_set, verbose, force_simulation)
 
-    scheduler_return_val = task_scheduler.is_schedulable()
+    scheduler_return_val = task_scheduler.is_feasible()
     if verbose:
         if scheduler_return_val == 0:
             print(f"The task set {task_file} is schedulable and you had to simulate the execution.")
@@ -167,7 +168,9 @@ def main():
         print(f"Time taken: {int(time() - start_time)} seconds")
 
         plot_primary_categories(schedule_stats) # Plot only the primary categories
-        plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper()) # Plot the non-schedulable categories with optimal
+        if args.algorithm.lower() != OPTIMAL_ALGORITHM:
+            # Plot the non-schedulable categories with comparison to optimal
+            plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper())
         print(f"Success Rate: {calculate_success_rate(schedule_stats) * 100}%")
     else:
         # Single task set
