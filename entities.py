@@ -42,14 +42,15 @@ class Task:
     def finish_job(self, job):
         self.jobs.remove(job)
 
-    def clear_state(self):
+    def clear_state(self, assigned_priorities):
         """
         Only used to implement Audsley!
 
         Clear the jobs and reset job_count for a fresh simulation.
         """
-        self.jobs = []
-        self.job_count = 0
+        if self not in assigned_priorities:
+            self.jobs = []
+            self.job_count = 0
 
     def __str__(self):
         return f"T{self.task_id} with period {self.period}, deadline {self.deadline}, priority {self.priority}"

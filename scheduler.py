@@ -63,7 +63,7 @@ class Scheduler(ABC):
     def is_task_set_too_long(self, time_max=None):
         if time_max is None:
             time_max = get_feasibility_interval(self.task_set)
-        #print(f"Time max: {time_max}")
+        # self.print(f"Time max: {time_max}")
         return time_max > MAX_ITERATIONS_LIMIT
 
     """
@@ -84,15 +84,6 @@ class Scheduler(ABC):
     def simulate_taskset(self):
         t = 0
         time_step = get_delta_t(self.task_set)
-
-        """
-        time_max = get_feasibility_interval(self.task_set)
-
-        # Naive (?) check to see if we're taking too long to simulate, because we really do need to know definitively
-        if self.is_task_set_too_long():
-            # Too long to simulate!
-            return 2
-        """
 
         time_max = self.get_simulation_interval()
         if self.is_task_set_too_long(time_max):

@@ -183,7 +183,10 @@ class Audsley(Scheduler):
         raise NotImplementedError("Audsley does not directly (!) use get_simulation_interval(), you should never see this!")
 
     def is_feasible(self):
-        # Try assigning priorities from lowest to highest using Audsley's algorithm, but first:
+        # Reset assigned priorities to ensure a fresh start
+        self.assigned_priorities.clear()
+
+        # Try assigning priorities from lowest to highest using Audsley's algorithm
         if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation:
             return 1  # Schedulable by utilization shortcut
 
@@ -206,61 +209,64 @@ class Audsley(Scheduler):
             # Simulation took too long, exclude the task set
             return 4
 
-
-    """
-    Try to assign the lowest priority to a task and recurse with the remaining tasks till we find a schedulable set
-    
-    Returns 0 if not schedulable, 1 if the task set is schedulable, 2 if the simulation took too long
-    """
     def try_assign_lowest_priority(self, tasks):
+        # Helper list to track temporary assigned priorities within the recursion
+        temp_priorities = self.assigned_priorities.copy()
+
         if not tasks:
-            return 1  # Schedulable
+            return 1  # Schedulable, since no remaining tasks!
 
         for task in tasks:
-            # Clear task state for a fresh simulation
-            for t in self.task_set.tasks:
-                t.clear_state()
+            # Skip tasks that have already been assigned a priority
+            if task in temp_priorities:
+                continue
 
-            # Check if task can be assigned the lowest priority
+            # Clear state only for tasks not in temp_priorities
+            for t in self.task_set.tasks:
+                if t not in temp_priorities:
+                    t.clear_state(self.assigned_priorities)
+
+            # Try assigning the lowest priority to the current task
             remaining_tasks = [t for t in tasks if t != task]
-            task.priority = len(tasks)  # Temporarily assign the lowest priority to this task
+            task.priority = len(tasks)  # Temporarily assign the lowest priority
 
             simulation_result = self.simulate_with_custom_priority(task, remaining_tasks)
             if simulation_result == 1:
-                """
-                If we wanted to know the priorities assigned to the tasks, we could have used the commented code below.
-                But we don't really care about the priorities, we only need to know if the task set is schedulable!
-                
-                # self.assigned_priorities.append(task)
-                # return self.try_assign_lowest_priority(remaining_tasks)
-                """
-                return 1
-            elif simulation_result == 2:
-                # If simulation took too long, exclude the task set
-                return 4
-            # If not schedulable, reset priority and try the next task
+                # If schedulable, add task to temp_priorities
+                temp_priorities.append(task)
+                # Recurse with the remaining tasks
+                result = self.try_assign_lowest_priority(remaining_tasks)
+                if result == 1:
+                    # If recursion confirms schedulability, merge temp_priorities
+                    self.assigned_priorities = temp_priorities
+                    return 1
+                else:
+                    # Remove task from temp_priorities if subsequent tasks are not schedulable
+                    temp_priorities.remove(task)
+
+            # Reset the task priority if not schedulable
             task.priority = 0
 
-        return 0  # Not schedulable if no task can be assigned
+        return 0  # Return not schedulable if no task can be assigned
 
-    """
-    Simulates scheduling with param 'task' at the lowest priority.
-    Returns True if the set is schedulable, False if not.
-    """
     def simulate_with_custom_priority(self, task, remaining_tasks):
-        # Clear task state for a fresh simulation
+        # Ensure simulate_with_custom_priority is only called for tasks without assigned priorities
+        if task in self.assigned_priorities:
+            return 1  # Task already has an assigned priority, should not reach here
+
+        # Clear state for tasks not yet in assigned_priorities
         for t in self.task_set.tasks:
-            t.clear_state()
+            if t not in self.assigned_priorities:
+                t.clear_state(self.assigned_priorities)
 
         self.print(f"Trying to schedule task {task} with priority {task.priority}")
         self.print(f"Remaining tasks: {[t for t in remaining_tasks]}")
 
-        # Create a TaskSet with the remaining tasks, ignoring their order, and use priority attribute in scheduling
-        custom_priority_task_set = TaskSet(remaining_tasks + [task])  # Add task to the set
+        # Create a TaskSet with remaining tasks and the current task
+        custom_priority_task_set = TaskSet(remaining_tasks + [task])
 
         temp_scheduler = _CustomPriorityAudsley(custom_priority_task_set)
-
-        schedulable = temp_scheduler.simulate_taskset()
+        schedulable = temp_scheduler.is_feasible()
         self.print(f"Simulation result: {schedulable}")
         return schedulable
 
@@ -274,15 +280,17 @@ class _CustomPriorityAudsley(Scheduler):
             return None
 
         # Sort tasks by their manually assigned priorities (lower priority number means higher importance)
-        sorted_tasks = sorted(active_tasks,
-                              key=lambda task: task.priority if task.priority is not None else float('inf'))
+        sorted_tasks = sorted(active_tasks, key=lambda task: task.priority if task.priority is not None else float('inf'))
         top_task = sorted_tasks[0]
         return top_task
 
     def get_simulation_interval(self):
-        # Implementing priority aware busy period is out of scope,
+        # Implementing priority-aware busy period is out of scope,
         # but also slightly more complex than just using feasibility interval
-        return get_feasibility_interval(self.task_set)
+        time_max = get_feasibility_interval(self.task_set)
+        if self.is_task_set_too_long(time_max):
+            return get_busy_period(self.task_set)
+        return time_max
 
     def is_feasible(self):
         if is_utilisation_within_ll_bound(self.task_set) and not self.force_simulation:  # utilization check for DM
@@ -293,4 +301,3 @@ class _CustomPriorityAudsley(Scheduler):
 
         # Custom scheduler just runs based on the assigned priorities
         return self.simulate_taskset()
-

@@ -10,6 +10,7 @@ from helpers import calculate_success_rate, Feasibility
 from plotters import plot_primary_categories, plot_non_schedulable_breakdown_grouped
 
 OPTIMAL_ALGORITHM = "edf"
+NUMBER_OF_PARALLEL_PROCESSES = 8
 
 """
 Return an instance of the scheduler based on the algorithm selected
@@ -93,7 +94,7 @@ def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=
         tasks.append((parse_task_file(task_file), task_file)) # (TaskSet, Path)
 
     # Now check in parallel if these task files are schedulable or not
-    with multiprocessing.Pool(processes=8) as pool:
+    with multiprocessing.Pool(processes=NUMBER_OF_PARALLEL_PROCESSES) as pool:
         results = [(task_set[0], # TaskSet
                     task_set[1], # Path
                     pool.apply_async(review_task_set, args=(algorithm, task_set[0], verbose, force_simulation, task_set[1]))) # Scheduler result
@@ -164,6 +165,7 @@ def main():
     path = Path(args.task_set_location)
     if path.is_dir():
         # Multiple task sets from a folder
+        print(f"Checking task sets in folder: {path}, for {args.algorithm}")
         schedule_stats = review_task_sets_in_parallel(args.algorithm, args.task_set_location, verbose=args.verbose, force_simulation=args.force_simulation)
         print(f"Time taken: {int(time() - start_time)} seconds")
 
