@@ -32,7 +32,7 @@ class Scheduler(ABC):
     Should be implemented in the child classes!
     """
     @abstractmethod
-    def get_top_priority(self, active_tasks):
+    def get_top_priority(self, active_tasks: list):
         pass
 
     """
@@ -60,7 +60,7 @@ class Scheduler(ABC):
     """
     Check if the simulation will take too long
     """
-    def is_task_set_too_long(self, time_max=None):
+    def is_task_set_too_long(self, time_max=None) -> bool:
         if time_max is None:
             time_max = get_feasibility_interval(self.task_set)
         # self.print(f"Time max: {time_max}")
@@ -81,7 +81,7 @@ class Scheduler(ABC):
         2 if the simulation takes too long
 
     """
-    def simulate_taskset(self):
+    def simulate_taskset(self) -> int:
         t = 0
         time_step = get_delta_t(self.task_set)
 

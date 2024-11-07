@@ -1,4 +1,4 @@
-from entities import TaskSet
+from entities import TaskSet, Task
 import math
 
 """
@@ -15,7 +15,7 @@ class Feasibility:
 
     # get string representation of the status
     @staticmethod
-    def get_status_string(status):
+    def get_status_string(status) -> str:
         if status == Feasibility.FEASIBLE_SHORTCUT:
             return "Feasible, took a shortcut"
         elif status == Feasibility.FEASIBLE_SIMULATION:
@@ -59,16 +59,38 @@ def is_utilisation_within_ll_bound(task_set: TaskSet) -> bool:
 
     return total_utilization <= utilization_bound
 
+"""
+Worst-case response time for explicit-deadline tasks
+"""
+def calculate_worst_case_response_time(task: Task, sorted_by_prio_tasks: list) -> int:
+    response_time_current = task.computation_time  # Initialize with task's own computation time
+    task_index = sorted_by_prio_tasks.index(task)  # Position in sorted list
+
+    while True:
+        # Interference from higher-priority tasks
+        interference = sum(
+            math.ceil(response_time_current / higher_task.period) * higher_task.computation_time
+            for higher_task in sorted_by_prio_tasks[:task_index]
+        )
+        response_time_next = task.computation_time + interference
+        # # If the response time converges or exceeds the deadline, update and stop the calculation
+        if response_time_next == response_time_current or response_time_next > task.deadline:
+            response_time_current = response_time_next  # Update before breaking, so that the last value is saved!
+            break
+        response_time_current = response_time_next
+    # print(f"Response time for task {task.task_id}: {response_time_current}")
+    return response_time_current
+
 
 """
 GCD and LCM functions for calculating the hyper period and delta_t
 """
-def gcd(a, b):
+def gcd(a: int, b: int) -> int:
     while b:
         a, b = b, a % b
     return a
 
-def lcm(a, b):
+def lcm(a: int, b: int) -> int:
     return a * b // gcd(a, b)
 
 def get_lcm(time_period_list: list) -> int:
@@ -108,7 +130,7 @@ def get_delta_t(task_set: TaskSet) -> int:
     return get_gcd(list(set(time_period_list)))
 
 
-def get_busy_period(task_set: TaskSet):
+def get_busy_period(task_set: TaskSet) -> int:
     # Calculate the busy period for the given task set if feasibility interval is too large
     current_busy_period = sum(task.computation_time for task in task_set.tasks)
 
@@ -128,7 +150,7 @@ def get_busy_period(task_set: TaskSet):
 """
 Calculate the success rate of the algorithm
 """
-def calculate_success_rate(schedule_stats):
+def calculate_success_rate(schedule_stats) -> float:
     """
     Success Rate = (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION) /
                (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION + NOT_SCHEDULABLE_BY_A_SHORTCUT + NOT_SCHEDULABLE_BY_A_SIMULATION)
