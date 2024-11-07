@@ -1,8 +1,6 @@
-import math
-
 from entities import TaskSet
 from helpers import is_utilisation_lte_1, is_utilisation_within_ll_bound, get_feasibility_interval, get_busy_period, \
-    calculate_worst_case_response_time
+    calculate_worst_case_response_time, get_first_idle_point
 from scheduler import Scheduler
 
 """
@@ -61,74 +59,21 @@ class EarliestDeadlineFirst(Scheduler):
         pass
 
     """
-    get_top_priority() won't be used because we never get to the point of scheduling, 
-    we can tell if it's schedulable by the utilisation
+    EDF is a fixed job priority algorithm, so we use the priority of the job, not the task!
     """
     def get_top_priority(self, active_tasks):
-        # Check active tasks and return the one with the earliest deadline
-        if len(active_tasks) == 0:
-            return None
+        # Gather all jobs from active tasks
+        jobs = [job for task in active_tasks for job in task.jobs if job is not None]
 
-        # Sort active tasks by their deadlines
-        sorted_tasks = sorted(active_tasks, key=lambda x: x.deadline)
-        return sorted_tasks[0]
-
-        #raise NotImplementedError("Earliest Deadline First does not use get_top_priority(), you should never see this!")
+        # Return the task associated with the job that has the earliest deadline, or None if no jobs are available
+        return min(jobs, key=lambda job: job.get_deadline()).task if jobs else None
 
     def get_simulation_interval(self):
         # Either use feasibility interval or busy period if the interval is too long
-        feasibility_interval = get_feasibility_interval(self.task_set)
+        feasibility_interval = get_first_idle_point(self.task_set)
         if self.is_task_set_too_long(feasibility_interval):
             return get_busy_period(self.task_set)
         return feasibility_interval
-        #raise NotImplementedError("Earliest Deadline First does not use get_simulation_interval(), you should never see this!")
-
-    def verify_deadlines(self) -> bool:
-        #feasibility_interval = get_feasibility_interval(self.task_set)
-        feasibility_interval = get_busy_period(self.task_set)
-        jobs = []
-
-        # Generate all jobs for each task within the feasibility interval
-        for task in self.task_set.tasks:
-            release_time = task.offset
-            while release_time < feasibility_interval:
-                job = task.release_job(release_time)
-                if job:
-                    jobs.append(job)
-                release_time += task.period  # Move to the next job release time
-
-        # Sort jobs by their deadlines (EDF prioritizes earliest deadlines)
-        jobs_sorted = sorted(jobs, key=lambda j: j.release_time + j.task.deadline)
-
-        current_time = 0
-        while jobs_sorted:
-            job = jobs_sorted.pop(0)  # Get the job with the earliest deadline
-
-            # Move to job's release time if the current time is less (idle time)
-            if current_time < job.release_time:
-                current_time = job.release_time
-
-            # Check if job can complete before its deadline
-            while job.computation_time_remaining > 0:
-                # Check if a new job with an earlier deadline has arrived
-                if jobs_sorted and jobs_sorted[0].release_time <= current_time and \
-                        (current_time + 1 > jobs_sorted[0].release_time + jobs_sorted[0].task.deadline):
-                    # Re-queue the current job, sorted by deadline
-                    jobs_sorted.append(job)
-                    jobs_sorted = sorted(jobs_sorted, key=lambda j: j.release_time + j.task.deadline)
-                    break
-
-                # Check if the job's deadline would be missed in the next time step
-                if current_time >= job.release_time + job.task.deadline:
-                    self.print(f"Deadline miss for {job} at time {current_time}")
-                    return False  # Deadline miss
-
-                # Simulate job execution for one time unit
-                job.computation_time_remaining -= 1
-                current_time += 1  # Advance time by one unit
-
-        # If all jobs meet their deadlines within the feasibility interval
-        return True
 
     def is_feasible(self):
         # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
@@ -151,24 +96,42 @@ Round Robin
 """
 class RoundRobin(Scheduler):
     def __post_init__(self):
-        self.task_queue = sorted(self.task_set.tasks, key=lambda x: x.deadline)
-        # Initialise the queue to keep track of incoming tasks, can initially be sorted by deadline
-        # This queue is not necessarily a priority queue, it's just a representation of the order the tasks will execute in
+        # Initialize the time quantum
+        avg_computation_time = sum(task.computation_time for task in self.task_set.tasks) / len(self.task_set.tasks)
+        self.quantum = int(avg_computation_time)
+
+        # Initialize the ready queue and quantum remaining for each task
+        self.ready_queue = []
+        self.quantum_remaining = {}
+
+        # Initialize a set to keep track of active tasks
+        self.active_task_set = set()
 
     def get_top_priority(self, active_tasks):
-        # Round Robin is a preemptive algorithm, so we just return the first task in the list
-        if len(active_tasks) == 0:
+        # Remove tasks that are no longer active
+        for task in list(self.ready_queue):
+            if task not in active_tasks:
+                self.ready_queue.remove(task)
+                self.quantum_remaining.pop(task.task_id, None)
+
+        # Add new active tasks to the ready queue
+        for task in active_tasks:
+            if task not in self.ready_queue:
+                self.ready_queue.append(task)
+                self.quantum_remaining[task.task_id] = self.quantum
+
+        # If the ready queue is empty, return None
+        if not self.ready_queue:
             return None
-        # Iterate through job queue and return the first task which is active
-        for task in self.task_queue:
-            if task in active_tasks:
-                self.task_queue.remove(task) # Remove from the "front"
-                self.task_queue.append(task) # Add to the "back"
-                return task
+
+        # Return the task at the front of the ready queue
+        return self.ready_queue[0]
 
     def get_simulation_interval(self):
-        # Can't use busy period here
-        return get_feasibility_interval(self.task_set)
+        feasibility_interval = get_feasibility_interval(self.task_set)
+        if self.is_task_set_too_long(feasibility_interval):
+            return get_busy_period(self.task_set)
+        return feasibility_interval
 
     def is_feasible(self):
         # Round Robin is not optimal (at all), so we have to simulate the execution, no shortcuts here

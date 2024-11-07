@@ -117,6 +117,19 @@ def get_feasibility_interval(task_set: TaskSet) -> int:
     o_max = max([task.offset for task in task_set.tasks])
     return o_max + 2 * get_hyper_period(task_set)
 
+def get_first_idle_point(task_set: TaskSet) -> int:
+    # Initialize w with the sum of all computation times
+    w = sum(task.computation_time for task in task_set.tasks)
+
+    while True:
+        # Calculate the next iteration of w
+        w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
+
+        # If the interval stabilizes, we have found L
+        if w_next == w:
+            return w_next
+        w = w_next
+
 def get_delta_t(task_set: TaskSet) -> int:
     # Calculate the greatest common divisor of the time periods of the tasks
     time_period_list = []
@@ -129,10 +142,10 @@ def get_delta_t(task_set: TaskSet) -> int:
     # Only unique values
     return get_gcd(list(set(time_period_list)))
 
-
 def get_busy_period(task_set: TaskSet) -> int:
     # Calculate the busy period for the given task set if feasibility interval is too large
     current_busy_period = sum(task.computation_time for task in task_set.tasks)
+    hyper_period = get_hyper_period(task_set)
 
     while True:
         # Calculate the next busy period
@@ -143,9 +156,12 @@ def get_busy_period(task_set: TaskSet) -> int:
             break
         current_busy_period = busy_period_next
 
-    #print(f"Busy period: {current_busy_period}")
-    return current_busy_period * 10
+        # Break if the busy period is too long!
+        if current_busy_period > hyper_period:
+            break
 
+    #print(f"Busy period: {current_busy_period}")
+    return current_busy_period * 2
 
 """
 Calculate the success rate of the algorithm

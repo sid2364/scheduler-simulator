@@ -121,9 +121,10 @@ class Scheduler(ABC):
             if previous_cycle_job is not None and previous_cycle_task is not None:
                 if previous_cycle_job.is_finished():
                     self.print(f"Finished {previous_cycle_job} at time {t}")
-                    active_tasks.remove(previous_cycle_job.task)
                     current_jobs.remove(previous_cycle_job)
                     previous_cycle_task.finish_job(previous_cycle_job)
+                    if not previous_cycle_task.has_unfinished_jobs():
+                        active_tasks.remove(previous_cycle_task)
                     previous_cycle_job = None
 
             # Check for new job releases
@@ -154,11 +155,9 @@ class Scheduler(ABC):
             previous_cycle_task = highest_priority_task
 
             if current_cycle_job == previous_cycle_job:
-                pass
                 self.print(f"Same {current_cycle_job} running at time {t}")
             else:
                 self.print(f"Running {current_cycle_job} at time {t}")
-                # self.print(f"Current cycle job which is now previous cycle job: {current_cycle_job}")
                 previous_cycle_job = current_cycle_job
 
             t += time_step

@@ -55,6 +55,7 @@ def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, 
 
     task_scheduler = get_scheduler(algorithm, task_set, verbose, force_simulation)
 
+    # print(f"Checking task set: {task_file}")
     scheduler_return_val = task_scheduler.is_feasible()
     if verbose:
         if scheduler_return_val == 0:
