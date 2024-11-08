@@ -82,6 +82,25 @@ def calculate_worst_case_response_time(task: Task, sorted_by_prio_tasks: list) -
     return response_time_current
 
 
+def calculate_worst_case_response_time_with_priorities(task, sorted_tasks, priorities):
+    wcrt = task.computation_time
+    while True:
+        interference = 0
+        for higher_priority_task in sorted_tasks:
+            if priorities[higher_priority_task.task_id] < priorities[task.task_id]:
+                # Add interference from higher-priority tasks
+                interference += math.ceil(wcrt / higher_priority_task.period) * higher_priority_task.computation_time
+
+        next_wcrt = task.computation_time + interference
+
+        # Check for convergence or deadline violation
+        if next_wcrt == wcrt:
+            return wcrt
+        elif next_wcrt > task.deadline:
+            return float('inf')  # Task can't meet its deadline
+
+        wcrt = next_wcrt
+
 """
 GCD and LCM functions for calculating the hyper period and delta_t
 """
