@@ -36,10 +36,10 @@ class DeadlineMonotonic(Scheduler):
             wcrt = calculate_worst_case_response_time(task, self.sorted_tasks)
             if wcrt > task.deadline:  # Check against period as implicit deadline
                 self.print(f"Task {task.task_id} is not schedulable; WCRT = {wcrt} exceeds deadline = {task.deadline}")
-                return 2  # Not schedulable due to deadline miss in WCRT analysis
+                return 3  # Not schedulable due to deadline miss in WCRT analysis
 
         # If WCRT analysis passes, the task set is schedulable
-        return 0
+        return 1
 
 """
 Earliest Deadline First
@@ -155,10 +155,10 @@ class RateMonotonic(Scheduler):
             wcrt = calculate_worst_case_response_time(task, self.sorted_tasks)
             if wcrt > task.deadline:
                 self.print(f"Task {task.task_id} is not schedulable; WCRT = {wcrt} exceeds deadline = {task.deadline}")
-                return 2  # Not schedulable due to deadline miss in WCRT analysis
+                return 3  # Not schedulable due to deadline miss in WCRT analysis
 
         # If WCRT analysis passes, the task set is schedulable
-        return 0
+        return 1 # We never have to "simulate", since we check the WCRT
 
 """
 Audsley
@@ -209,7 +209,7 @@ class Audsley(Scheduler):
 
             if not task_found:
                 # If no task could be assigned the current lowest priority level, it's unschedulable
-                return 2  # Not schedulable
+                return 2  # Not schedulable, but here since it could "recurse" many levels, we consider it a simulation
 
         return 0  # All tasks successfully assigned priorities; schedulable
 

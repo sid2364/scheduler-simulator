@@ -95,7 +95,7 @@ def plot_feasibility_ratio(feasibility_dict, plot_title, xlabel):
     tasks = list(feasibility_dict.keys())
     ratios = [feasibility_dict[task] for task in tasks]
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 6))
 
     # Define x positions for each category
     x_positions = range(len(tasks))

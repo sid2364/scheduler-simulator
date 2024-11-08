@@ -171,9 +171,9 @@ def main():
         print(f"Time taken: {int(time() - start_time)} seconds")
 
         plot_primary_categories(schedule_stats) # Plot only the primary categories
-        if args.algorithm.lower() != OPTIMAL_ALGORITHM:
-            # Plot the non-schedulable categories with comparison to optimal
-            plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper())
+        # if args.algorithm.lower() != OPTIMAL_ALGORITHM:
+        #     # Plot the non-schedulable categories with comparison to optimal
+        #     plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper())
         print(f"Success Rate: {calculate_success_rate(schedule_stats) * 100}%")
     else:
         # Single task set
