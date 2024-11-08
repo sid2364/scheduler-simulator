@@ -5,9 +5,11 @@ from time import time
 import concurrent.futures
 
 from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
+from entities import TaskSet
 from parse_tasks import parse_task_file
 from helpers import calculate_success_rate, Feasibility
 from plotters import plot_primary_categories, plot_non_schedulable_breakdown_grouped
+from scheduler import Scheduler
 
 OPTIMAL_ALGORITHM = "edf"
 NUMBER_OF_PARALLEL_PROCESSES = 8
@@ -15,7 +17,7 @@ NUMBER_OF_PARALLEL_PROCESSES = 8
 """
 Return an instance of the scheduler based on the algorithm selected
 """
-def get_scheduler(algorithm, task_set, verbose, force_simulation):
+def get_scheduler(algorithm: str, task_set: TaskSet, verbose: bool, force_simulation: bool):
     algorithm = algorithm.lower()
     if algorithm == 'rm':
         return RateMonotonic(task_set, verbose, force_simulation)
@@ -35,20 +37,20 @@ def get_scheduler(algorithm, task_set, verbose, force_simulation):
 """
 Return an instance of EDF
 """
-def get_optimal_scheduler(task_set, verbose, force_simulation):
+def get_optimal_scheduler(task_set: TaskSet, verbose: bool, force_simulation: bool) -> Scheduler:
     return get_scheduler(OPTIMAL_ALGORITHM, task_set, verbose, force_simulation)
 
 """
 Check if a task set is schedulable by the optimal algorithm
 """
-def check_schedulable_by_optimal(task_set, verbose=False, force_simulation=False):
+def check_schedulable_by_optimal(task_set: TaskSet, verbose=False, force_simulation=False) -> bool:
     optimal_scheduler = get_optimal_scheduler(task_set, verbose, force_simulation)
     return optimal_scheduler.is_feasible()
 
 """
 Check if a task set is schedulable by the specified algorithm
 """
-def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, task_file=None):
+def review_task_set(algorithm: str, task_set: TaskSet, verbose=False, force_simulation=False, task_file=None) -> int:
     if task_set is None:
         print("Task set could not be parsed.")
         return
@@ -73,7 +75,7 @@ def review_task_set(algorithm, task_set, verbose=False, force_simulation=False, 
 """
 Evaluate multiple task sets in a folder in parallel!
 """
-def review_task_sets_in_parallel(algorithm, folder_name, verbose=False, timeout=10, force_simulation=False):
+def review_task_sets_in_parallel(algorithm: str, folder_name: str, verbose=False, timeout=10, force_simulation=False):
     infeasible = 0
     not_schedulable_by_a = 0
     schedulable_by_a = 0
@@ -171,9 +173,6 @@ def main():
         print(f"Time taken: {int(time() - start_time)} seconds")
 
         plot_primary_categories(schedule_stats) # Plot only the primary categories
-        # if args.algorithm.lower() != OPTIMAL_ALGORITHM:
-        #     # Plot the non-schedulable categories with comparison to optimal
-        #     plot_non_schedulable_breakdown_grouped(schedule_stats, args.algorithm.upper())
         print(f"Success Rate: {calculate_success_rate(schedule_stats) * 100}%")
     else:
         # Single task set

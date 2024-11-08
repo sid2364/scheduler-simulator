@@ -77,12 +77,16 @@ def calculate_worst_case_response_time(task: Task, sorted_by_prio_tasks: list) -
         if response_time_next == response_time_current or response_time_next > task.deadline:
             response_time_current = response_time_next  # Update before breaking, so that the last value is saved!
             break
+        # print(f"Response time current: {response_time_current}, response time next: {response_time_next}")
         response_time_current = response_time_next
     # print(f"Response time for task {task.task_id}: {response_time_current}")
     return response_time_current
 
 
-def calculate_worst_case_response_time_with_priorities(task, sorted_tasks, priorities):
+"""
+Worst-case response time but also taking into consideration the priorities; Handy for Audsley!
+"""
+def calculate_worst_case_response_time_with_priorities(task: Task, sorted_tasks: list, priorities: dict):
     wcrt = task.computation_time
     while True:
         interference = 0
@@ -136,6 +140,9 @@ def get_feasibility_interval(task_set: TaskSet) -> int:
     o_max = max([task.offset for task in task_set.tasks])
     return o_max + 2 * get_hyper_period(task_set)
 
+"""
+First idle point in simulation, after 0
+"""
 def get_first_idle_point(task_set: TaskSet) -> int:
     # Initialize w with the sum of all computation times
     w = sum(task.computation_time for task in task_set.tasks)
@@ -149,6 +156,9 @@ def get_first_idle_point(task_set: TaskSet) -> int:
             return w_next
         w = w_next
 
+"""
+Smallest time increment, used to make simulation step through quicker
+"""
 def get_delta_t(task_set: TaskSet) -> int:
     # Calculate the greatest common divisor of the time periods of the tasks
     time_period_list = []

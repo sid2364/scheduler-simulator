@@ -12,9 +12,9 @@ class Task:
     computation_time: int
     deadline: int
     period: int
-    priority: int = None  # Only used in Audsley's algorithm
+    priority: int = None  # Only used in Audsley's algorithm!
 
-    def __init__(self, offset, computation_time, deadline, period):
+    def __init__(self, offset: int, computation_time: int, deadline: int, period: int):
         Task.task_id += 1
         self.task_id = Task.task_id
         self.offset = offset
@@ -23,9 +23,9 @@ class Task:
         self.period = period
         self.jobs = []
         self.job_count = 0
-        self.priority = 0  # Default to 0, only used in Audsley's algorithm
+        self.priority = 0  # Default to 0, only used in Audsley's algorithm!
 
-    def release_job(self, release_time):
+    def release_job(self, release_time: int):
         if release_time < self.offset:
             return None
         if (release_time - self.offset) % self.period == 0:
@@ -44,16 +44,6 @@ class Task:
 
     def finish_job(self, job):
         self.jobs.remove(job)
-
-    def clear_state(self, assigned_priorities):
-        """
-        Only used to implement Audsley!
-
-        Clear the jobs and reset job_count for a fresh simulation.
-        """
-        if self not in assigned_priorities:
-            self.jobs = []
-            self.job_count = 0
 
     def __str__(self):
         return f"T{self.task_id} with period {self.period}, deadline {self.deadline}, priority {self.priority}"
