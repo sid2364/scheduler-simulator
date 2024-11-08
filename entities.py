@@ -39,6 +39,9 @@ class Task:
             return None
         return self.jobs[0]
 
+    def has_unfinished_jobs(self):
+        return any([not job.is_finished() for job in self.jobs])
+
     def finish_job(self, job):
         self.jobs.remove(job)
 
@@ -71,6 +74,9 @@ class Job:
 
     def deadline_missed(self, current_time):
         return current_time > self.release_time + self.task.deadline
+
+    def get_deadline(self):
+        return self.release_time + self.task.deadline
 
     def schedule(self, for_time):
         # just subtract the computation time from the job, "executing" it for that time

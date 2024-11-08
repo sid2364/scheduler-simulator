@@ -1,4 +1,4 @@
-from entities import TaskSet
+from entities import TaskSet, Task
 import math
 
 """
@@ -15,7 +15,7 @@ class Feasibility:
 
     # get string representation of the status
     @staticmethod
-    def get_status_string(status):
+    def get_status_string(status) -> str:
         if status == Feasibility.FEASIBLE_SHORTCUT:
             return "Feasible, took a shortcut"
         elif status == Feasibility.FEASIBLE_SIMULATION:
@@ -59,16 +59,57 @@ def is_utilisation_within_ll_bound(task_set: TaskSet) -> bool:
 
     return total_utilization <= utilization_bound
 
+"""
+Worst-case response time for explicit-deadline tasks
+"""
+def calculate_worst_case_response_time(task: Task, sorted_by_prio_tasks: list) -> int:
+    response_time_current = task.computation_time  # Initialize with task's own computation time
+    task_index = sorted_by_prio_tasks.index(task)  # Position in sorted list
+
+    while True:
+        # Interference from higher-priority tasks
+        interference = sum(
+            math.ceil(response_time_current / higher_task.period) * higher_task.computation_time
+            for higher_task in sorted_by_prio_tasks[:task_index]
+        )
+        response_time_next = task.computation_time + interference
+        # # If the response time converges or exceeds the deadline, update and stop the calculation
+        if response_time_next == response_time_current or response_time_next > task.deadline:
+            response_time_current = response_time_next  # Update before breaking, so that the last value is saved!
+            break
+        response_time_current = response_time_next
+    # print(f"Response time for task {task.task_id}: {response_time_current}")
+    return response_time_current
+
+
+def calculate_worst_case_response_time_with_priorities(task, sorted_tasks, priorities):
+    wcrt = task.computation_time
+    while True:
+        interference = 0
+        for higher_priority_task in sorted_tasks:
+            if priorities[higher_priority_task.task_id] < priorities[task.task_id]:
+                # Add interference from higher-priority tasks
+                interference += math.ceil(wcrt / higher_priority_task.period) * higher_priority_task.computation_time
+
+        next_wcrt = task.computation_time + interference
+
+        # Check for convergence or deadline violation
+        if next_wcrt == wcrt:
+            return wcrt
+        elif next_wcrt > task.deadline:
+            return float('inf')  # Task can't meet its deadline
+
+        wcrt = next_wcrt
 
 """
 GCD and LCM functions for calculating the hyper period and delta_t
 """
-def gcd(a, b):
+def gcd(a: int, b: int) -> int:
     while b:
         a, b = b, a % b
     return a
 
-def lcm(a, b):
+def lcm(a: int, b: int) -> int:
     return a * b // gcd(a, b)
 
 def get_lcm(time_period_list: list) -> int:
@@ -95,6 +136,19 @@ def get_feasibility_interval(task_set: TaskSet) -> int:
     o_max = max([task.offset for task in task_set.tasks])
     return o_max + 2 * get_hyper_period(task_set)
 
+def get_first_idle_point(task_set: TaskSet) -> int:
+    # Initialize w with the sum of all computation times
+    w = sum(task.computation_time for task in task_set.tasks)
+
+    while True:
+        # Calculate the next iteration of w
+        w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
+
+        # If the interval stabilizes, we have found L
+        if w_next == w:
+            return w_next
+        w = w_next
+
 def get_delta_t(task_set: TaskSet) -> int:
     # Calculate the greatest common divisor of the time periods of the tasks
     time_period_list = []
@@ -107,10 +161,10 @@ def get_delta_t(task_set: TaskSet) -> int:
     # Only unique values
     return get_gcd(list(set(time_period_list)))
 
-
-def get_busy_period(task_set: TaskSet):
+def get_busy_period(task_set: TaskSet) -> int:
     # Calculate the busy period for the given task set if feasibility interval is too large
     current_busy_period = sum(task.computation_time for task in task_set.tasks)
+    hyper_period = get_hyper_period(task_set)
 
     while True:
         # Calculate the next busy period
@@ -121,14 +175,17 @@ def get_busy_period(task_set: TaskSet):
             break
         current_busy_period = busy_period_next
 
-    #print(f"Busy period: {current_busy_period}")
-    return current_busy_period * 10
+        # Break if the busy period is too long!
+        if current_busy_period > hyper_period:
+            break
 
+    #print(f"Busy period: {current_busy_period}")
+    return current_busy_period * 2
 
 """
 Calculate the success rate of the algorithm
 """
-def calculate_success_rate(schedule_stats):
+def calculate_success_rate(schedule_stats) -> float:
     """
     Success Rate = (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION) /
                (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION + NOT_SCHEDULABLE_BY_A_SHORTCUT + NOT_SCHEDULABLE_BY_A_SIMULATION)

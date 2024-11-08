@@ -91,19 +91,29 @@ def plot_non_schedulable_breakdown_grouped(category_frequency_dict,
 Plots for the report, just for EDF!
 """
 def plot_feasibility_ratio(feasibility_dict, plot_title, xlabel):
-    tasks = sorted(feasibility_dict.keys())
+    # Get tasks as categories
+    tasks = list(feasibility_dict.keys())
     ratios = [feasibility_dict[task] for task in tasks]
 
-    plt.figure(figsize=(10, 6))
-    plt.bar(tasks, ratios, color="skyblue", edgecolor="black", width=0.5)
+    plt.figure(figsize=(12, 6))
 
+    # Define x positions for each category
+    x_positions = range(len(tasks))
+
+    # Plot bars with categorical x-axis
+    plt.bar(x_positions, ratios, color="skyblue", edgecolor="black", width=0.5)
+
+    # Set categorical labels for x-axis
+    plt.xticks(x_positions, tasks)
+
+    # Set labels and title
     plt.xlabel(xlabel, fontsize=14)
     plt.ylabel("Feasibility Ratio", fontsize=14)
     plt.title(plot_title, fontsize=16)
     plt.ylim(-0.1, 1.1)  # Ratio ranges from 0 to 1, so extend a bit
 
-    plt.xticks(tasks)
-    plt.grid(axis="y", alpha=1)
+    # Add grid on y-axis only
+    plt.grid(axis="y", alpha=0.75)
     plt.tight_layout()
     plt.show()
 
@@ -111,18 +121,32 @@ def plot_feasibility_ratio(feasibility_dict, plot_title, xlabel):
 Plots success rates of each algorithm as a line chart, with utilization on the x-axis and success rate on the y-axis.
 """
 def plot_success_rate(success_rates, plot_title, xlabel):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 6))
 
-    # Plot success rate for each algorithm
-    for alg, rates in success_rates.items():
-        utilization_levels = sorted(rates.keys())
-        success_values = [rates[util] for util in utilization_levels]
-        plt.plot(utilization_levels, success_values, marker="o", label=alg)
+    # Define categorical positions for each x-axis category
+    categories = list(next(iter(success_rates.values())).keys())
+    x_positions = np.arange(len(categories))  # Evenly spaced positions
 
+    # Define a fixed width for the bars
+    width = 0.15
+
+    # Plot each algorithm
+    for i, (alg, rates) in enumerate(success_rates.items()):
+        success_values = [rates[util] for util in categories]
+
+        # Offset each algorithm slightly on the categorical x-axis
+        bar_positions = x_positions + i * width - (len(success_rates) - 1) * width / 2
+
+        # Plot bars and use the same color for the line plot
+        bars = plt.bar(bar_positions, success_values, width=width, label=alg)
+        plt.plot(x_positions, success_values, marker="o", color=bars[0].get_facecolor())
+
+    # Set the categorical labels
+    plt.xticks(x_positions, categories)  # Use actual category values as labels
     plt.xlabel(xlabel)
     plt.ylabel("Success Rate")
     plt.title(plot_title)
-    plt.legend(title="Algorithm")
-    plt.grid(True)
+    plt.legend(title="Algorithm", loc="best")
+    plt.grid(True, axis="y")  # Only grid on y-axis for clarity
     plt.tight_layout()
     plt.show()
