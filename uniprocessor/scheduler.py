@@ -5,7 +5,7 @@ from time import time
 from entities import TaskSet
 from utils.metrics import get_delta_t, get_feasibility_interval
 
-MAX_ITERATIONS_LIMIT = 500000  # Saves some time by exiting if we already know it's going to take too long
+MAX_ITERATIONS_LIMIT = 5000000  # Saves some time by exiting if we already know it's going to take too long
 MAX_SECONDS_LIMIT = 5  # 5 seconds per task set can actually be a lot of time!
 
 
@@ -163,3 +163,4 @@ class Scheduler(ABC):
             t += time_step
 
         return 1  # All jobs finished on time till time_max
+

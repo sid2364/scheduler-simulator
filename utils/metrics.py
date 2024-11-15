@@ -39,7 +39,7 @@ def utilisation(task_set: TaskSet) -> bool:
     utilization_factor = 0
     for task in task_set.tasks:
         utilization_factor += task.computation_time / task.period
-    # print(f"Utilization factor: {utilization_factor}")
+    print(f"Utilization factor: {utilization_factor}")
     return utilization_factor
 
 def is_utilisation_lte_69(task_set: TaskSet) -> bool:
@@ -149,12 +149,14 @@ def get_first_idle_point(task_set: TaskSet) -> int:
 
     while True:
         # Calculate the next iteration of w
-        w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
+        #w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
+        w_next = sum((w // task.period) * task.computation_time for task in task_set.tasks)
 
         # If the interval stabilizes, we have found L
         if w_next == w:
             return w_next
         w = w_next
+        print(f"First idle point: {w}")
 
 """
 Smallest time increment, used to make simulation step through quicker

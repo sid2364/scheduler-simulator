@@ -3,6 +3,33 @@ from utils.metrics import is_utilisation_lte_1, get_feasibility_interval, get_bu
     calculate_worst_case_response_time, get_first_idle_point, calculate_worst_case_response_time_with_priorities
 from uniprocessor.scheduler import Scheduler
 
+OPTIMAL_ALGORITHM = "edf"
+
+"""
+Return an instance of the scheduler based on the algorithm selected
+"""
+def get_uni_scheduler(algorithm: str, task_set: TaskSet, verbose: bool, force_simulation: bool):
+    algorithm = algorithm.lower()
+    if algorithm == 'rm':
+        return RateMonotonic(task_set, verbose, force_simulation)
+    elif algorithm == 'dm':
+        return DeadlineMonotonic(task_set, verbose, force_simulation)
+    elif algorithm == 'audsley':
+        return Audsley(task_set, verbose, force_simulation)
+    elif algorithm == 'edf':
+        return EarliestDeadlineFirst(task_set, verbose, force_simulation)
+    elif algorithm == 'rr':
+        return RoundRobin(task_set, verbose, force_simulation)
+    else:
+        print("Invalid algorithm selected!") # Won't happen because of argparse but why not
+        return None
+
+"""
+Return an instance of EDF
+"""
+def get_optimal_scheduler(task_set: TaskSet, verbose: bool, force_simulation: bool) -> Scheduler:
+    return get_uni_scheduler(OPTIMAL_ALGORITHM, task_set, verbose, force_simulation)
+
 """
 Deadline Monotonic
 """
@@ -66,7 +93,7 @@ class EarliestDeadlineFirst(Scheduler):
         # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1
         # But since we're dealing with constrained systems, we need to simulate the execution to be sure!
 
-        if not is_utilisation_lte_1(self.task_set):
+        if not is_utilisation_lte_1(self.task_set) and not self.force_simulation:
             # Utilization exceeds 1, so the task set is immediately unschedulable
             return 3
 
