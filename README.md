@@ -11,7 +11,7 @@ The simulator assesses task schedulability based on attributes like offset, comp
 
 ## How to Run
 ```bash
-python3 simulator.py {rm|dm|audsley|edf|rr} <task_set_file|task_set_directory> [options]
+python3 main.py {rm|dm|audsley|edf|rr} <task_set_file|task_set_directory> [options]
 ```
 
 ### Parameters

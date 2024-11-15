@@ -2,14 +2,13 @@ import argparse
 from pathlib import Path
 import multiprocessing
 from time import time
-import concurrent.futures
 
-from algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
+from uniprocessor.algorithms import RateMonotonic, DeadlineMonotonic, Audsley, EarliestDeadlineFirst, RoundRobin
 from entities import TaskSet
-from parse_tasks import parse_task_file
-from helpers import calculate_success_rate, Feasibility
-from plotters import plot_primary_categories, plot_non_schedulable_breakdown_grouped
-from scheduler import Scheduler
+from utils.parse import parse_task_file
+from utils.metrics import calculate_success_rate, Feasibility
+from utils.plotters import plot_primary_categories
+from uniprocessor.scheduler import Scheduler
 
 OPTIMAL_ALGORITHM = "edf"
 NUMBER_OF_PARALLEL_PROCESSES = 8
