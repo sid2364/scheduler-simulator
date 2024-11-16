@@ -35,13 +35,13 @@ class BestFit(PartitionHeuristic):
             for cluster in min_utilization_clusters:
                 if cluster.can_fit(task):
                     cluster.add_task(task)
-                    print(f"Task {task.task_id} added to cluster {cluster.cluster_id}")
                     found_fit = True
                     break
             if not found_fit:
                 # If the task cannot fit in any cluster, no partitioning is possible, task set is not schedulable
                 print(f"Task {task.task_id} cannot fit in any cluster")
                 return None
+        pretty_print_clusters(clusters)
         return clusters
 
 class WorstFit(PartitionHeuristic):
@@ -102,3 +102,10 @@ class NextFit(PartitionHeuristic):
                 # If the task cannot fit in any cluster, no partitioning is possible, task set is not schedulable
                 return None
         return clusters
+
+
+def pretty_print_clusters(clusters):
+    for cluster in clusters:
+        tasks = [f"T{task.task_id}" for task in cluster.tasks]
+        print(f"Cluster {cluster.cluster_id}: Utilisation = {cluster.get_utilisation()}"
+              f"; Tasks = {', '.join(tasks)}")

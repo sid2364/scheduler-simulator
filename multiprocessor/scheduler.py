@@ -7,6 +7,9 @@ from multiprocessor.edfcluster import EDFCluster
 from multiprocessor.partitioner import PartitionHeuristic
 from utils.metrics import get_delta_t, sort_tasks_by_utilization, get_feasibility_interval
 
+MAX_ITERATIONS_LIMIT = 50000000  # Saves some time by exiting if we already know it's going to take too long
+MAX_SECONDS_LIMIT = 5  # 5 seconds per task set can actually be a lot of time!
+
 """
 EDF(k) Scheduler
 """
@@ -40,7 +43,7 @@ class EDFk(ABC):
     
     If k = 1, this is partitioned EDF
     If k = m, this is global EDF
-    Otherwise, it is a hybrid of the two!
+    Otherwise, it is a hybrid of the two - EDF(k)
     """
     def init_clusters(self):
         # Divide processors into clusters of size k
@@ -55,8 +58,9 @@ class EDFk(ABC):
         # self.print(f"Initialized {len(self.clusters)} clusters: {self.clusters}")
 
     def is_task_set_too_long(self, time_max=None) -> bool:
-        # TODO: Implement this
-        return False
+        if time_max is None:
+            time_max = self.get_simulation_interval()
+        return time_max > MAX_ITERATIONS_LIMIT
 
     def partition_taskset(self):
         # Partition the task set into the clusters
@@ -71,7 +75,7 @@ class EDFk(ABC):
             hyper_period = get_feasibility_interval(cluster.tasks)
             if hyper_period > feasibility_interval:
                 feasibility_interval = hyper_period
-        # print(f"Feasibility interval: {feasibility_interval}")
+        print(f"Feasibility interval: {feasibility_interval}")
         return feasibility_interval
 
     """
@@ -98,9 +102,13 @@ class EDFk(ABC):
 
         time_started = time()
 
-
         while t < time_max:
             self.print(f"******* Time {t}-{t + time_step} *******")
+
+            # Check if we're taking too long to run this function
+            if time() - time_started > MAX_SECONDS_LIMIT:
+                self.print(f"Took more than {MAX_SECONDS_LIMIT}, timing out!")
+                return 4
 
             # Check for deadline misses in all clusters
             for cluster in self.clusters:
