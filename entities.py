@@ -48,6 +48,15 @@ class Task:
     def __str__(self):
         return f"T{self.task_id} with period {self.period}, deadline {self.deadline}, priority {self.priority}"
 
+    # These are just so that we can add Tasks to sets
+    def __hash__(self):
+        return hash(self.task_id)  # Use task_id as the hash key
+
+    def __eq__(self, other):
+        if isinstance(other, Task):
+            return self.task_id == other.task_id
+        return False
+
 
 @dataclass
 class Job:
@@ -63,7 +72,8 @@ class Job:
         self.release_time = release_time
 
     def deadline_missed(self, current_time):
-        return current_time > self.release_time + self.task.deadline
+        print(f"Current time: {current_time}, release time: {self.release_time}, deadline: {self.get_deadline()}")
+        return current_time > self.release_time + self.task.deadline and not self.is_finished()
 
     def get_deadline(self):
         return self.release_time + self.task.deadline
@@ -81,4 +91,14 @@ class Job:
     def __str__(self):
         #return f"Job {self.job_id} of Task {self.task.task_id} released at {self.release_time}"
         return f"T{self.task.task_id} - J{self.job_id}"
+
+    # These are just so that we can add Tasks to sets
+    def __hash__(self):
+        return hash(self.job_id + self.task.task_id)  # Use task_id as the hash key
+
+    def __eq__(self, other):
+        # Ensure equality is based on both job_id and the associated task
+        if isinstance(other, Job):
+            return self.job_id == other.job_id and self.task.task_id == other.task.task_id
+        return False
 

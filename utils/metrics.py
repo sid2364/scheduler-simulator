@@ -214,3 +214,9 @@ def calculate_success_rate(schedule_stats) -> float:
     success_rate = success / total * 1.0
     return success_rate
 
+"""
+Return the tasks sorted by their utilization for our bin packing exercise
+"""
+def sort_tasks_by_utilization(tasks: list, decreasing=True) -> list:
+    # Sort the tasks by their utilization
+    return sorted(tasks, key=lambda x: x.computation_time / x.period, reverse=decreasing)

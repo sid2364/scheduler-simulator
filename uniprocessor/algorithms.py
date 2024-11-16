@@ -86,7 +86,6 @@ class EarliestDeadlineFirst(Scheduler):
         return min(jobs, key=lambda job: job.get_deadline()).task if jobs else None
 
     def get_simulation_interval(self):
-        # Either use feasibility interval or busy period if the interval is too long
         return get_first_idle_point(self.task_set)
 
     def is_feasible(self):
