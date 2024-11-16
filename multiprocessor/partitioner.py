@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from entities import TaskSet
-from multiprocessor.cluster import Cluster
+from multiprocessor.edfcluster import EDFCluster
 from utils.metrics import sort_tasks_by_utilization
 
 """
@@ -16,17 +16,17 @@ class PartitionHeuristic(ABC):
         self.decreasing_utilisation = decreasing_utilisation
 
     @abstractmethod
-    def partition(self, task_set: TaskSet, clusters: list[Cluster]):
+    def partition(self, task_set: TaskSet, clusters: list[EDFCluster]):
         pass
 
 """
 First Fit, Best Fit, Worst Fit, Next Fit partitioning heuristics
 """
 class BestFit(PartitionHeuristic):
-    def partition(self, task_set: TaskSet, clusters: list[Cluster]):
+    def partition(self, task_set: TaskSet, clusters: list[EDFCluster]):
         # Sort tasks by utilization
         sorted_tasks = sort_tasks_by_utilization(task_set.tasks, self.decreasing_utilisation) # Decreasing utilization is from the parent class
-        print(f"Sorted tasks: {sorted_tasks}")
+        # print(f"Sorted tasks: {sorted_tasks}")
         for task in sorted_tasks:
             # Find the cluster with the least utilization
             min_utilization_clusters = sorted(clusters, key=lambda x: x.get_utilisation())
@@ -45,7 +45,7 @@ class BestFit(PartitionHeuristic):
         return clusters
 
 class WorstFit(PartitionHeuristic):
-    def partition(self, task_set: TaskSet, clusters: list[Cluster]):
+    def partition(self, task_set: TaskSet, clusters: list[EDFCluster]):
         # Sort tasks by utilization
         sorted_tasks = sort_tasks_by_utilization(task_set.tasks, self.decreasing_utilisation) # Decreasing utilization is from the parent class
         for task in sorted_tasks:
@@ -65,7 +65,7 @@ class WorstFit(PartitionHeuristic):
         return clusters
 
 class FirstFit(PartitionHeuristic):
-    def partition(self, task_set: TaskSet, clusters: list[Cluster]):
+    def partition(self, task_set: TaskSet, clusters: list[EDFCluster]):
         # Sort tasks by utilization
         sorted_tasks = sort_tasks_by_utilization(task_set.tasks, self.decreasing_utilisation) # Decreasing utilization is from the parent class
         for task in sorted_tasks:
@@ -83,7 +83,7 @@ class FirstFit(PartitionHeuristic):
         return clusters
 
 class NextFit(PartitionHeuristic):
-    def partition(self, task_set: TaskSet, clusters: list[Cluster]):
+    def partition(self, task_set: TaskSet, clusters: list[EDFCluster]):
         # Sort tasks by utilization
         sorted_tasks = sort_tasks_by_utilization(task_set.tasks, self.decreasing_utilisation) # Decreasing utilization is from the parent class
         current_cluster = 0

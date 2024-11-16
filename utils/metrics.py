@@ -130,15 +130,15 @@ def get_gcd(time_value_list: list) -> int:
         gcd_value = gcd(gcd_value, i)
     return gcd_value
 
-def get_hyper_period(task_set: TaskSet) -> int:
+def get_hyper_period(tasks: list) -> int:
     # Calculate the hyper period of a task set
-    time_period_list = [task.period for task in task_set.tasks]
+    time_period_list = [task.period for task in tasks]
     return get_lcm(list(set(time_period_list)))
 
-def get_feasibility_interval(task_set: TaskSet) -> int:
+def get_feasibility_interval(tasks: list) -> int:
     # Calculate the maximum time for simulation
-    o_max = max([task.offset for task in task_set.tasks])
-    return o_max + 2 * get_hyper_period(task_set)
+    o_max = max([task.offset for task in tasks])
+    return o_max + 2 * get_hyper_period(tasks)
 
 """
 First idle point in simulation, after 0
@@ -176,7 +176,7 @@ def get_delta_t(task_set: TaskSet) -> int:
 def get_busy_period(task_set: TaskSet) -> int:
     # Calculate the busy period for the given task set if feasibility interval is too large
     current_busy_period = sum(task.computation_time for task in task_set.tasks)
-    hyper_period = get_hyper_period(task_set)
+    hyper_period = get_hyper_period(task_set.tasks)
 
     while True:
         # Calculate the next busy period

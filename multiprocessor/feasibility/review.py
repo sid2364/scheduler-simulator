@@ -13,5 +13,5 @@ def review_task_set(algorithm: str, task_set: TaskSet, m: int, k: int, verbose=F
     heuristic = BestFit()
     edf_scheduler = EDFk(task_set, k, m, heuristic, verbose, force_simulation)
 
-    scheduler_return_val = edf_scheduler.simulate_taskset()
-    print(scheduler_return_val)
+    scheduler_return_val = edf_scheduler.simulate_taskset() # call is_feasible() method instead
+    return scheduler_return_val

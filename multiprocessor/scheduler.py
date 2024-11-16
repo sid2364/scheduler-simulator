@@ -3,10 +3,9 @@ from dataclasses import dataclass
 from time import time
 
 from entities import TaskSet
-from multiprocessor.cluster import Cluster
+from multiprocessor.edfcluster import EDFCluster
 from multiprocessor.partitioner import PartitionHeuristic
-from utils.metrics import get_delta_t, sort_tasks_by_utilization
-
+from utils.metrics import get_delta_t, sort_tasks_by_utilization, get_feasibility_interval
 
 """
 EDF(k) Scheduler
@@ -49,11 +48,11 @@ class EDFk(ABC):
         remaining_processors = self.m % self.k # Except, we also have sometimes an uneven division
 
         for _ in range(num_clusters):
-            self.clusters.append(Cluster(self.k))
+            self.clusters.append(EDFCluster(self.k))
 
         if remaining_processors > 0:
-            self.clusters.append(Cluster(remaining_processors))
-        self.print(f"Initialized {len(self.clusters)} clusters: {self.clusters}")
+            self.clusters.append(EDFCluster(remaining_processors))
+        # self.print(f"Initialized {len(self.clusters)} clusters: {self.clusters}")
 
     def is_task_set_too_long(self, time_max=None) -> bool:
         # TODO: Implement this
@@ -67,11 +66,16 @@ class EDFk(ABC):
         return True
 
     def get_simulation_interval(self):
-        # TODO: get the hyper period for each cluster and calculate rolling max
-        return 5000
+        feasibility_interval = 0
+        for cluster in self.clusters:
+            hyper_period = get_feasibility_interval(cluster.tasks)
+            if hyper_period > feasibility_interval:
+                feasibility_interval = hyper_period
+        # print(f"Feasibility interval: {feasibility_interval}")
+        return feasibility_interval
 
     """
-    Simulate
+    Simulate the task set and check if it is schedulable
        
     Exit code Description
     0 Schedulable and simulation was required.
@@ -90,7 +94,7 @@ class EDFk(ABC):
 
         time_max = self.get_simulation_interval() # TODO
         if self.is_task_set_too_long(time_max): # TODO
-            return 2
+            return 4
 
         time_started = time()
 
@@ -109,7 +113,6 @@ class EDFk(ABC):
             # Check if previous cycle jobs finished
             for cluster in self.clusters:
                 previous_cycle_jobs = cluster.previous_cycle_jobs
-                #previous_cycle_tasks = cluster.previous_cycle_tasks
                 for job in previous_cycle_jobs:
                     if job.is_finished():
                         self.print(f"{job} is finished")
@@ -118,7 +121,6 @@ class EDFk(ABC):
                         task.finish_job(job)
                         if not task.has_unfinished_jobs():
                             cluster.active_tasks.remove(task)
-                        #cluster.previous_cycle_jobs.remove(job) # will recompute this later anyway
 
             # Check for new job releases in all clusters
             for cluster in self.clusters:
@@ -147,17 +149,17 @@ class EDFk(ABC):
                         cluster.previous_cycle_tasks.append(task)
                         cluster.previous_cycle_jobs.append(job)
 
-            for cluster in self.clusters:
-                for task in cluster.active_tasks:
-                    self.print(f"Cluster {cluster.cluster_id} active tasks: T{task.task_id}")
-                for job in cluster.current_jobs:
-                    self.print(f"Cluster {cluster.cluster_id} current jobs: T{job.task.task_id}-J{job.job_id}")
-                for job in cluster.previous_cycle_jobs:
-                    self.print(f"Cluster {cluster.cluster_id} previous cycle jobs: T{job.task.task_id}-J{job.job_id}")
-                for task in cluster.previous_cycle_tasks:
-                    self.print(f"Cluster {cluster.cluster_id} previous cycle tasks: T{task.task_id}")
+            # for cluster in self.clusters:
+            #     for task in cluster.active_tasks:
+            #         self.print(f"Cluster {cluster.cluster_id} active tasks: T{task.task_id}")
+            #     for job in cluster.current_jobs:
+            #         self.print(f"Cluster {cluster.cluster_id} current jobs: T{job.task.task_id}-J{job.job_id}")
+            #     for job in cluster.previous_cycle_jobs:
+            #         self.print(f"Cluster {cluster.cluster_id} previous cycle jobs: T{job.task.task_id}-J{job.job_id}")
+            #     for task in cluster.previous_cycle_tasks:
+            #         self.print(f"Cluster {cluster.cluster_id} previous cycle tasks: T{task.task_id}")
 
             t += time_step
 
-        return 1
+        return 0
 

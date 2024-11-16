@@ -140,7 +140,7 @@ class RoundRobin(Scheduler):
         return self.ready_queue[0]
 
     def get_simulation_interval(self):
-        feasibility_interval = get_feasibility_interval(self.task_set)
+        feasibility_interval = get_feasibility_interval(self.task_set.tasks)
         if self.is_task_set_too_long(feasibility_interval):
             return get_busy_period(self.task_set)
         return feasibility_interval

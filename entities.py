@@ -72,7 +72,6 @@ class Job:
         self.release_time = release_time
 
     def deadline_missed(self, current_time):
-        print(f"Current time: {current_time}, release time: {self.release_time}, deadline: {self.get_deadline()}")
         return current_time > self.release_time + self.task.deadline and not self.is_finished()
 
     def get_deadline(self):

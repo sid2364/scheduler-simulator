@@ -62,7 +62,7 @@ class Scheduler(ABC):
     """
     def is_task_set_too_long(self, time_max=None) -> bool:
         if time_max is None:
-            time_max = get_feasibility_interval(self.task_set)
+            time_max = get_feasibility_interval(self.task_set.tasks)
         # self.print(f"Time max: {time_max}")
         return time_max > MAX_ITERATIONS_LIMIT
 

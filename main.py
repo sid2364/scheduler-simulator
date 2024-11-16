@@ -87,9 +87,20 @@ def main():
     if path.is_file():
         # Single task set
         task_set = parse_task_file(path)
-        ret_val = review_task_set("", task_set, args.m, args.k, True)
+        ret_val = review_task_set("", task_set, args.m, args.k, False)
         print(f"Time taken: {int(time() - start_time)} seconds")
         print(f"Return value: {ret_val}")
+
+        if ret_val == 0:
+            print(f"The task set {path} is schedulable and you had to simulate the execution.")
+        elif ret_val == 1:
+            print(f"The task set {path} is schedulable because some sufficient condition is met.")
+        elif ret_val == 2:
+            print(f"The task set {path} is not schedulable and you had to simulate the execution.")
+        elif ret_val == 3:
+            print(f"The task set {path} is not schedulable because a necessary condition does not hold.")
+        elif ret_val == 4:
+            print(f"Took too long to simulate the execution for {path}, exclude the task set.")
         exit(ret_val)
 
 

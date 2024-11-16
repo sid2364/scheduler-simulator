@@ -12,7 +12,7 @@ Within each cluster, tasks can migrate between processors
 This class uses deadline as a priority metric (meant just for EDF)
 """
 @dataclass
-class Cluster:
+class EDFCluster:
     cluster_id = 0
     num_processors: float
     tasks: list[Task]
@@ -22,8 +22,8 @@ class Cluster:
     previous_cycle_tasks: list
 
     def __init__(self, num_processors):
-        Cluster.cluster_id += 1
-        self.cluster_id = Cluster.cluster_id
+        EDFCluster.cluster_id += 1
+        self.cluster_id = EDFCluster.cluster_id
         self.num_processors = num_processors
         self.tasks = []
         self.current_jobs = []
