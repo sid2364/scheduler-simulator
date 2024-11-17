@@ -38,7 +38,10 @@ class EDFCluster:
         return sum(task.computation_time / task.period for task in self.tasks)
 
     def add_task(self, task):
-        self.tasks.append(task)
+        if self.can_fit(task):
+            self.tasks.append(task)
+            return True
+        return False
 
     def can_fit(self, task):
         # Check if task + current utilisation <= num_processors
