@@ -5,7 +5,7 @@ from time import time
 
 from entities import TaskSet
 from multiprocessor.edfcluster import EDFCluster
-from multiprocessor.partitioner import PartitionHeuristic, pretty_print_clusters
+from multiprocessor.partitioner import PartitionHeuristic
 from utils.metrics import get_delta_t, get_feasibility_interval
 
 MAX_ITERATIONS_LIMIT = 50_000_000  # Saves some time by exiting if we already know it's going to take too long
@@ -95,7 +95,10 @@ class EDFk(ABC):
                 if not found_fit:
                     return False
 
-            # pretty_print_clusters(self.clusters)
+            tasks = [f"T{task.task_id}" for task in cluster.tasks]
+            self.print(f"Cluster {cluster.cluster_id}: Utilisation = {cluster.get_utilisation()}"
+                       f"; Tasks = {', '.join(tasks)}")
+
             return True
         else:
             # Partitioned EDF or EDF(k)
@@ -172,9 +175,10 @@ class EDFk(ABC):
                     if job.is_finished():
                         self.print(f"{job} is finished")
                         task = job.task
-                        cluster.current_jobs.remove(job)
+                        if job in cluster.current_jobs:
+                            cluster.current_jobs.remove(job)
                         task.finish_job(job)
-                        if not task.has_unfinished_jobs():
+                        if not task.has_unfinished_jobs() and task in cluster.active_tasks:
                             cluster.active_tasks.remove(task)
 
             # Check for new job releases in all clusters

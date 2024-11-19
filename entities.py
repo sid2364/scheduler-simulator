@@ -43,7 +43,16 @@ class Task:
         return any([not job.is_finished() for job in self.jobs])
 
     def finish_job(self, job):
-        self.jobs.remove(job)
+        """
+        Weirdly, calling this from a multithreaded context *sometimes* *randomly*
+        causes this to throw an error:
+          ValueError: list.remove(x): x not in list
+        Even though the job cannot not be in the list, since we are literally
+        iterating over it! So we will just double (actually, triple) check
+        that the job is in the list before removing it
+        """
+        if job in self.jobs:
+            self.jobs.remove(job)
 
     def __str__(self):
         return f"T{self.task_id} with period {self.period}, deadline {self.deadline}, priority {self.priority}"

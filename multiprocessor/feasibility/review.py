@@ -25,9 +25,9 @@ def review_task_set_multi(algorithm: MultiprocessorSchedulerType,
     edf_task_scheduler = get_multi_scheduler(algorithm, task_set, m, k, heuristic, verbose, force_simulation)
 
     if verbose:
-        print(f"Scheduler type: {edf_task_scheduler.scheduler_type} {edf_task_scheduler}")
+        print(f"Scheduler: {edf_task_scheduler}")
+    print(f"Checking task set: {task_file}")
 
-        print(f"Checking task set: {task_file}")
     scheduler_return_val = edf_task_scheduler.is_feasible()
     if verbose:
         if scheduler_return_val == 0:
