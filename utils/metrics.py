@@ -2,9 +2,9 @@ from entities import TaskSet, Task
 import math
 
 """
-Enum class for the status of the task set 
+Enum class for the status of the task set in uniprocessor systems
 """
-class Feasibility:
+class UniprocessorFeasibility:
     FEASIBLE_SHORTCUT = 0
     FEASIBLE_SIMULATION = 1
     NOT_SCHEDULABLE_BY_A_SHORTCUT = 2
@@ -16,20 +16,44 @@ class Feasibility:
     # get string representation of the status
     @staticmethod
     def get_status_string(status) -> str:
-        if status == Feasibility.FEASIBLE_SHORTCUT:
+        if status == UniprocessorFeasibility.FEASIBLE_SHORTCUT:
             return "Feasible, took a shortcut"
-        elif status == Feasibility.FEASIBLE_SIMULATION:
+        elif status == UniprocessorFeasibility.FEASIBLE_SIMULATION:
             return "Feasible, had to simulate"
-        elif status == Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT:
+        elif status == UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT:
             return "Not Schedulable by A, took a shortcut"
-        elif status == Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION:
+        elif status == UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION:
             return "Not Schedulable by A, had to simulate"
-        elif status == Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A:
+        elif status == UniprocessorFeasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A:
             return "Schedulable by Optimal (EDF) but not by A"
-        elif status == Feasibility.INFEASIBLE:
+        elif status == UniprocessorFeasibility.INFEASIBLE:
             return "Infeasible (both A and Optimal)"
-        elif status == Feasibility.TIMED_OUT:
+        elif status == UniprocessorFeasibility.TIMED_OUT:
             return "Timed Out"
+
+"""
+Enum class for the status of the task set in multiprocessor systems
+"""
+class MultiprocessorFeasibility:
+    SCHEDULABLE_SIMULATION = 0
+    SCHEDULABLE_SHORTCUT = 1
+    NOT_SCHEDULABLE_SIMULATION = 2
+    NOT_SCHEDULABLE_SHORTCUT = 3
+    CANNOT_TELL = 4
+
+    # get string representation of the status
+    @staticmethod
+    def get_status_string(status) -> str:
+        if status == MultiprocessorFeasibility.SCHEDULABLE_SIMULATION:
+            return "Schedulable, had to simulate"
+        elif status == MultiprocessorFeasibility.SCHEDULABLE_SHORTCUT:
+            return "Schedulable, took a shortcut"
+        elif status == MultiprocessorFeasibility.NOT_SCHEDULABLE_SIMULATION:
+            return "Not Schedulable, had to simulate"
+        elif status == MultiprocessorFeasibility.NOT_SCHEDULABLE_SHORTCUT:
+            return "Not Schedulable, took a shortcut"
+        elif status == MultiprocessorFeasibility.CANNOT_TELL:
+            return "Cannot tell if schedulable or not"
 
 """
 Utilisation factor functions
@@ -202,9 +226,9 @@ def calculate_success_rate(schedule_stats) -> float:
     Success Rate = (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION) /
                (FEASIBLE_SHORTCUT + FEASIBLE_SIMULATION + NOT_SCHEDULABLE_BY_A_SHORTCUT + NOT_SCHEDULABLE_BY_A_SIMULATION)
     """
-    success = schedule_stats.get(Feasibility.FEASIBLE_SHORTCUT, 0) + schedule_stats.get(Feasibility.FEASIBLE_SIMULATION, 0)
+    success = schedule_stats.get(UniprocessorFeasibility.FEASIBLE_SHORTCUT, 0) + schedule_stats.get(UniprocessorFeasibility.FEASIBLE_SIMULATION, 0)
 
-    failure = schedule_stats.get(Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0) + schedule_stats.get(Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0)
+    failure = schedule_stats.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0) + schedule_stats.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0)
 
     total = success + failure
 

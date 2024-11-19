@@ -4,7 +4,7 @@ from entities import TaskSet
 from pathlib import Path
 import multiprocessing
 
-from utils.metrics import Feasibility
+from utils.metrics import UniprocessorFeasibility
 from utils.parse import parse_task_file
 
 NUMBER_OF_PARALLEL_PROCESSES = 8
@@ -17,9 +17,9 @@ def check_schedulable_by_optimal(task_set: TaskSet, verbose=False, force_simulat
     return optimal_scheduler.is_feasible()
 
 """
-Check if a task set is schedulable by the specified algorithm
+Check if a task set is schedulable by the specified algorithm for uniprocessor systems
 """
-def review_task_set(algorithm: str, task_set: TaskSet, verbose=False, force_simulation=False, task_file=None) -> int:
+def review_task_set_uni(algorithm: str, task_set: TaskSet, verbose=False, force_simulation=False, task_file=None) -> int:
     if task_set is None:
         print("Task set could not be parsed.")
         return 5
@@ -42,9 +42,9 @@ def review_task_set(algorithm: str, task_set: TaskSet, verbose=False, force_simu
     return scheduler_return_val
 
 """
-Evaluate multiple task sets in a folder in parallel!
+Evaluate multiple task sets in a folder in parallel for uniprocessor systems!
 """
-def review_task_sets_in_parallel(algorithm: str, folder_name: str, verbose=False, timeout=10, force_simulation=False):
+def review_task_sets_in_parallel_uni(algorithm: str, folder_name: str, verbose=False, timeout=10, force_simulation=False):
     infeasible = 0
     not_schedulable_by_a = 0
     schedulable_by_a = 0
@@ -69,7 +69,7 @@ def review_task_sets_in_parallel(algorithm: str, folder_name: str, verbose=False
     with multiprocessing.Pool(processes=NUMBER_OF_PARALLEL_PROCESSES) as pool:
         results = [(task_set[0], # TaskSet
                     task_set[1], # Path
-                    pool.apply_async(review_task_set, args=(algorithm, task_set[0], verbose, force_simulation, task_set[1]))) # Scheduler result
+                    pool.apply_async(review_task_set_uni, args=(algorithm, task_set[0], verbose, force_simulation, task_set[1])))  # Scheduler result
                    for task_set in tasks]
         pool.close()
         pool.join()
@@ -109,12 +109,12 @@ def review_task_sets_in_parallel(algorithm: str, folder_name: str, verbose=False
     print(f"Total files considered: {total_files} out of {len(task_files)}")
 
     return {
-        Feasibility.FEASIBLE_SHORTCUT: schedulable_by_a_shortcut,
-        Feasibility.FEASIBLE_SIMULATION: schedulable_by_a_simulated,
-        Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: not_schedulable_by_a_shortcut,
-        Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: not_schedulable_by_a_simulated,
-        Feasibility.TIMED_OUT: timed_out,
-        Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A: schedulable_by_optimal_but_not_by_a,
-        Feasibility.INFEASIBLE: infeasible
+        UniprocessorFeasibility.FEASIBLE_SHORTCUT: schedulable_by_a_shortcut,
+        UniprocessorFeasibility.FEASIBLE_SIMULATION: schedulable_by_a_simulated,
+        UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: not_schedulable_by_a_shortcut,
+        UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: not_schedulable_by_a_simulated,
+        UniprocessorFeasibility.TIMED_OUT: timed_out,
+        UniprocessorFeasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A: schedulable_by_optimal_but_not_by_a,
+        UniprocessorFeasibility.INFEASIBLE: infeasible
     }
 

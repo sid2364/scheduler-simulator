@@ -1,21 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from utils.metrics import Feasibility
+from utils.metrics import UniprocessorFeasibility
 
 """
 Plotters for the stats from just one algorithm
 """
 def plot_primary_categories(category_frequency_dict):
     primary_categories = {
-        Feasibility.FEASIBLE_SHORTCUT: category_frequency_dict.get(Feasibility.FEASIBLE_SHORTCUT, 0),
-        Feasibility.FEASIBLE_SIMULATION: category_frequency_dict.get(Feasibility.FEASIBLE_SIMULATION, 0),
-        Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: category_frequency_dict.get(Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0),
-        Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: category_frequency_dict.get(Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0),
-        Feasibility.TIMED_OUT: category_frequency_dict.get(Feasibility.TIMED_OUT, 0)
+        UniprocessorFeasibility.FEASIBLE_SHORTCUT: category_frequency_dict.get(UniprocessorFeasibility.FEASIBLE_SHORTCUT, 0),
+        UniprocessorFeasibility.FEASIBLE_SIMULATION: category_frequency_dict.get(UniprocessorFeasibility.FEASIBLE_SIMULATION, 0),
+        UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT: category_frequency_dict.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0),
+        UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION: category_frequency_dict.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0),
+        UniprocessorFeasibility.TIMED_OUT: category_frequency_dict.get(UniprocessorFeasibility.TIMED_OUT, 0)
     }
 
-    labels = [Feasibility.get_status_string(k) for k in primary_categories.keys()]
+    labels = [UniprocessorFeasibility.get_status_string(k) for k in primary_categories.keys()]
     sizes = list(primary_categories.values())
     colors = list(mcolors.TABLEAU_COLORS.values())[:len(primary_categories)]
     explode = [0.05] * len(sizes)
@@ -50,22 +50,22 @@ def plot_non_schedulable_breakdown_grouped(category_frequency_dict,
 
     # Combine the shortcut and simulation counts for the target algorithm
     not_schedulable_target = (
-            category_frequency_dict.get(Feasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0) +
-            category_frequency_dict.get(Feasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0)
+            category_frequency_dict.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SHORTCUT, 0) +
+            category_frequency_dict.get(UniprocessorFeasibility.NOT_SCHEDULABLE_BY_A_SIMULATION, 0)
     )
 
     # Define the values for each algorithm (target and optimal)
     target_values = [
         not_schedulable_target,
-        category_frequency_dict.get(Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A, 0),
-        category_frequency_dict.get(Feasibility.INFEASIBLE, 0)
+        category_frequency_dict.get(UniprocessorFeasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A, 0),
+        category_frequency_dict.get(UniprocessorFeasibility.INFEASIBLE, 0)
     ]
 
     # Optimal algorithm values only apply to the last two categories
     optimal_values = [
         0,  # No combined non-schedulable category for optimal
-        category_frequency_dict.get(Feasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A, 0),
-        category_frequency_dict.get(Feasibility.INFEASIBLE, 0)
+        category_frequency_dict.get(UniprocessorFeasibility.SCHEDULABLE_BY_OPTIMAL_BUT_NOT_BY_A, 0),
+        category_frequency_dict.get(UniprocessorFeasibility.INFEASIBLE, 0)
     ]
 
     # Generate the grouped bar chart

@@ -11,7 +11,7 @@ from utils.metrics import get_delta_t, get_feasibility_interval
 MAX_ITERATIONS_LIMIT = 50_000_000  # Saves some time by exiting if we already know it's going to take too long
 MAX_SECONDS_LIMIT = 10  # 10 seconds per task set can actually be a lot of time!
 
-class SchedulerType(Enum):
+class MultiprocessorSchedulerType(Enum):
     GLOBAL_EDF = "Global EDF"
     PARTITIONED_EDF = "Partitioned EDF"
     EDF_K = "EDF(k)"
@@ -29,7 +29,7 @@ class EDFk(ABC):
     m: int # Number of processors
     heuristic: PartitionHeuristic # Heuristic used for partitioning tasks into clusters
     clusters: list[EDFCluster] # List of clusters
-    scheduler_type: SchedulerType = SchedulerType.EDF_K
+    scheduler_type: MultiprocessorSchedulerType = MultiprocessorSchedulerType.EDF_K
 
     def __init__(self,
                  task_set: TaskSet,
@@ -221,8 +221,8 @@ class EDFk(ABC):
         return 0
 
     def __str__(self):
-        return (f"{self.scheduler_type} with {self.k} clusters and {self.m} processors "
-                f"using heuristic {self.heuristic}")
+        return (f"{self.scheduler_type} with {self.k} clusters and {self.m} processors"
+                f" using heuristic {self.heuristic}")
 
 """
 Global EDF(k) Scheduler
@@ -230,7 +230,7 @@ Global EDF(k) Scheduler
 This is the EDF(k) scheduler where k = m, everything else is the same
 """
 class GlobalEDF(EDFk):
-    scheduler_type = SchedulerType.GLOBAL_EDF
+    scheduler_type = MultiprocessorSchedulerType.GLOBAL_EDF
     def __init__(self, task_set, num_processors, verbose=False, force_simulation=False):
         super().__init__(task_set,
                          num_clusters=num_processors,
@@ -245,7 +245,7 @@ Partitioned EDF Scheduler
 When k = 1, there are as many clusters as there are processors, i.e. no migration is possible
 """
 class PartitionedEDF(EDFk):
-    scheduler_type = SchedulerType.PARTITIONED_EDF
+    scheduler_type = MultiprocessorSchedulerType.PARTITIONED_EDF
     def __init__(self, task_set, num_processors, heuristic, verbose=False, force_simulation=False):
         super().__init__(task_set,
                          num_clusters=1,
@@ -253,3 +253,17 @@ class PartitionedEDF(EDFk):
                          heuristic=heuristic,
                          verbose=verbose,
                          force_simulation=force_simulation)
+
+"""
+Get the scheduler object based on the algorithm type
+"""
+def get_multi_scheduler(algorithm: MultiprocessorSchedulerType, task_set: TaskSet, m: int, k: int, heuristic: PartitionHeuristic, verbose=False, force_simulation=False):
+    if algorithm == MultiprocessorSchedulerType.GLOBAL_EDF:
+        edf_scheduler = GlobalEDF(task_set, m, verbose, force_simulation)
+    elif algorithm == MultiprocessorSchedulerType.PARTITIONED_EDF:
+        edf_scheduler = PartitionedEDF(task_set, m, heuristic, verbose, force_simulation)
+    elif algorithm == MultiprocessorSchedulerType.EDF_K:
+        edf_scheduler = EDFk(task_set, k, m, heuristic, verbose, force_simulation)
+    else:
+        raise ValueError("Invalid algorithm type")
+    return edf_scheduler
