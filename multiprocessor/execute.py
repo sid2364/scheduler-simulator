@@ -7,40 +7,43 @@ from multiprocessor.scheduler import MultiprocessorSchedulerType
 from utils.metrics import MultiprocessorFeasibility
 from utils.parse import parse_arguments_multiprocessor, parse_task_file
 
+
+NUMBER_OF_PARALLEL_PROCESSES = 8
+
 """
 Main function for multiprocessor systems
 """
 def execute_multiprocessor_system_experiments():
     args = parse_arguments_multiprocessor()
     # Parse the scheduling algorithm
-    if args.version == 'global':
+    if args.algorithm == 'global':
         algorithm = MultiprocessorSchedulerType.GLOBAL_EDF
-    elif args.version == 'partitioned':
+    elif args.algorithm == 'partitioned':
         algorithm = MultiprocessorSchedulerType.PARTITIONED_EDF
     else:
         algorithm = MultiprocessorSchedulerType.EDF_K
 
     # Parse the sorting order for the tasks in the heuristic
     is_decreasing_utilisation = True
-    if args.s is not None:
-        if args.s == 'iu':
+    if args.sorting is not None:
+        if args.sorting == 'iu':
             is_decreasing_utilisation = False
-        elif args.s == 'du':
+        elif args.sorting == 'du':
             is_decreasing_utilisation = True
 
     # Parse the heuristic
     heuristic = None
-    if args.H is not None:
-        if args.H == 'ff':
-            heuristic = FirstFit(is_decreasing_utilisation)
-        elif args.H == 'nf':
-            heuristic = NextFit(is_decreasing_utilisation)
-        elif args.H == 'bf':
-            heuristic = BestFit(is_decreasing_utilisation)
-        elif args.H == 'wf':
-            heuristic = WorstFit(is_decreasing_utilisation)
+    if args.heuristic is not None:
+        if args.heuristic == 'ff':
+            heuristic = FirstFit(is_decreasing_utilisation, verbose=args.verbose)
+        elif args.heuristic == 'nf':
+            heuristic = NextFit(is_decreasing_utilisation, verbose=args.verbose)
+        elif args.heuristic == 'bf':
+            heuristic = BestFit(is_decreasing_utilisation, verbose=args.verbose)
+        elif args.heuristic == 'wf':
+            heuristic = WorstFit(is_decreasing_utilisation, verbose=args.verbose)
 
-    workers = args.w if args.w is not None else 8
+    workers = args.workers if args.workers is not None else NUMBER_OF_PARALLEL_PROCESSES
 
     start_time = time()
 

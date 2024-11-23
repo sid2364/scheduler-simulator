@@ -1,6 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
+from tabnanny import verbose
 from time import time, sleep
 import multiprocessing
 
@@ -59,6 +60,11 @@ class EDFk(ABC):
         # Partitioning indirectly verifies that utilisation
         self.is_partitioned = self.partition_taskset()
 
+        if self.is_partitioned:
+            # Validate the partitioning
+            self.remove_empty_clusters()
+            if self.verbose: self.pretty_print_clusters(self.clusters)
+
     """
     Creates m/k clusters for the EDF(k) scheduler
     
@@ -77,7 +83,7 @@ class EDFk(ABC):
 
         if remaining_processors > 0:
             self.clusters.append(EDFCluster(remaining_processors))
-        if self.verbose: print(f"Initialized {len(self.clusters)} clusters: {self.clusters}")
+        if self.verbose: print(f"Initialized {len(self.clusters)} clusters")
 
     """
     Pretty print the clusters, their utilisation, and the tasks in each cluster
@@ -108,7 +114,6 @@ class EDFk(ABC):
                 if not found_fit:
                     return False
 
-            if self.verbose: self.pretty_print_clusters([cluster])
             return True
         else:
             # Partitioned EDF or EDF(k)
@@ -116,11 +121,10 @@ class EDFk(ABC):
             if self.clusters is None:
                 if self.verbose: print("Partitioning failed!")
                 return False
-            if self.verbose: self.pretty_print_clusters(self.clusters)
             return True
 
     """
-    We get the rolling max of the feasibility interval from each cluster
+    We get the feasibility interval from each cluster
     """
     def get_simulation_interval_for_cluster(self, cluster):
         feasibility_interval = 0
@@ -134,13 +138,109 @@ class EDFk(ABC):
     def is_task_set_too_long(time_max: int) -> bool:
         return time_max > MAX_ITERATIONS_LIMIT
 
+    """
+    If any cluster is empty, remove it
+    
+    This might happen in case of using first-fit or next-fit heuristics
+    """
+    def remove_empty_clusters(self):
+        self.clusters = [cluster for cluster in self.clusters if cluster.get_utilisation() != 0]
+
+    """
+    Goossens's Bound 
+    
+    Sufficiency condition which can be applied to each cluster (i.e., all algorithms)
+    """
+    def goossens_bound(self):
+        if not self.is_partitioned:
+            return False
+
+        # Check Goossens's Bound for each cluster
+        processors_per_cluster = self.m / self.k
+        for cluster in self.clusters:
+            total_utilization = sum(task.computation_time / task.period for task in cluster.tasks)
+            max_utilization = max(task.computation_time / task.period for task in cluster.tasks)
+
+            # Apply Goossens's Bound to this cluster
+            bound = processors_per_cluster - (processors_per_cluster - 1) * max_utilization
+            print(f"Cluster {cluster.cluster_id}: Total utilization = {total_utilization}, bound = {bound}")
+            if total_utilization > bound:
+                if self.verbose:
+                    print(f"Cluster {cluster.cluster_id}: Total utilization {total_utilization} exceeds bound {bound}.")
+                return False
+
+        # If all clusters satisfy the bound
+        return True
+
+    """
+    Verify necessary (but not sufficient) condition of density
+    """
+    def check_density(self):
+        total_density = 0
+
+        # Calculate total density across all tasks
+        for task in self.task_set.tasks:
+            density = task.computation_time / min(task.deadline, task.period)
+            total_density += density
+
+            # For Partitioned EDF, each task must have density ≤ 1
+            if self.k == 1 and density > 1:
+                if self.verbose: print(f"Task {task.task_id} has density > 1 and cannot fit into any processor.")
+                return False
+
+        # For Global EDF - Could move this to GlobalEDF class!
+        if self.k is None or self.k == self.m:
+            if total_density <= self.m:
+                return True
+            else:
+                if self.verbose: print(f"Total density {total_density} exceeds the capacity of {self.m} processors.")
+                return False
+
+        # For EDF-k: Partition tasks and check cluster densities
+        if self.k is not None:
+            # Check per-cluster density
+            for cluster in self.clusters:
+                cluster_density = 0
+                #cluster_density = sum(task.computation_time / min(task.deadline, task.period) for task in cluster.tasks)
+                for task in cluster.tasks:
+                    density = task.computation_time / min(task.deadline, task.period)
+                    print(f"Task {task.task_id} density: {density}, computation time: {task.computation_time}, deadline: {task.deadline}, period: {task.period}")
+                    cluster_density =+ density
+
+                if cluster_density > 1.0 * cluster.num_processors:  # "Local" processor capacity
+                    if self.verbose:
+                        print(f"Cluster {cluster.cluster_id} density {cluster_density} exceeds "
+                              f"its capacity {cluster.num_processors}.")
+                    return False
+            return True
+
+        return False
+
+    """
+    Main method to determine if the task set is schedulable or not
+    
+    Return codes:
+    0 Schedulable and simulation was required.
+    1 Schedulable because some sufficient condition is met.
+    2 Not schedulable and simulation was required.
+    3 Not schedulable because a necessary condition does not hold.
+    4 You can not tell.
+    """
     def is_feasible(self):
         # If partitioning the task set into the clusters didn't work
         # This implies the utilisation of the tasks is too high for the number of processors
         if not self.is_partitioned:
             return 3
 
-        # USE TOTAL DENSISITY TO CHECK IF THE TASK SET IS SCHEDULABLE
+        # Check density
+        # self.verbose = True
+        if not self.check_density():
+            print("Density condition not met")
+            return 3
+
+        # Check Goossens's Bound
+        if self.goossens_bound():
+            return 1
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
@@ -160,7 +260,7 @@ class EDFk(ABC):
     """
     Simulate the task set and check if it is schedulable
        
-    Exit code Description
+    Return codes (same as is_feasible):
     0 Schedulable and simulation was required.
     1 Schedulable because some sufficient condition is met.
     2 Not schedulable and simulation was required.
@@ -244,8 +344,11 @@ class EDFk(ABC):
         return 0
 
     def __str__(self):
-        return print(f"{self.scheduler_type} with {self.k} clusters and {self.m} processors"
-                f" using heuristic {self.heuristic}")
+        if self.clusters is None:
+            return (f"{self.scheduler_type} with {self.k} cluster(s),"
+                    f" and {self.m} total processors using heuristic {self.heuristic}")
+        return (f"{self.scheduler_type} with {len(self.clusters)} cluster(s),"
+                f" and {self.m} total processors using heuristic {self.heuristic}")
 
 """
 Global EDF(k) Scheduler

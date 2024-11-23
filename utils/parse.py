@@ -4,8 +4,6 @@ from entities import Task, TaskSet
 
 """
 Parse a CSV file with tasks and return a TaskSet object
-
-We can change the implementation of this function to read from a different file format, if needed.
 """
 def parse_task_file(file_path):
     tasks = []
@@ -49,47 +47,58 @@ def parse_arguments_uniprocessor():
     return parser.parse_args()
 
 """
-$ python main.py <task_file> <m> -v global|partitioned|<k> [-w <w>] [-H ff|nf|bf|wf] [-s iu|du]
+$ python main.py <task_file> <m> global|partitioned|<k> [-v|--verbose] [-w <w>] [-H ff|nf|bf|wf] [-s iu|du]
 """
 def parse_arguments_multiprocessor():
-    parser = argparse.ArgumentParser(description='Select a scheduling algorithm and specify a task set file.')
+    class CustomArgumentParser(argparse.ArgumentParser):
+        def format_usage(self):
+            usage = f"usage: {self.prog} task_set_location <m> global|partitioned|<k> [-v|--verbose] [-w W] [-H {{ff,nf,bf,wf}}] [-s {{iu,du}}] [-f]\n"
+            return usage
+
+    parser = CustomArgumentParser(description='Select a multiprocessor scheduling algorithm '
+                                                 'and specify a task set file.')
 
     parser.add_argument('task_set_location', type=str, help='Path to the task set file.')
     parser.add_argument('m', type=int, help='Number of processors.')
 
     # Scheduling algorithm to use
     parser.add_argument(
-        '-v', # Not verbose!
-        '--version',
+        'algorithm',
         type=str,
-        required=True,
         help="EDF scheduling algorithm to use: 'global', 'partitioned', or specify a numeric k for EDF(k).",
     )
 
-    # Other optional arguments
-    parser.add_argument('-w', type=int, help="Number of workers w to run the simulation.") # Number of cores by default
-    # Can't use -h because it's already used for help!
-    parser.add_argument('-H', choices=['ff', 'nf', 'bf', 'wf'], help="Heuristic to use for partitioning.")
-    parser.add_argument('-s', choices=['iu', 'du'], help="Sort tasks by increasing or decreasing utilization.")
+    # Verbose
+    parser.add_argument('-v', '--verbose', action='store_true', help="Enable verbose mode for detailed output.")
 
-    # Verbose, but can't use -v because it's already used for version
-    parser.add_argument('-V', '--verbose', action='store_true', help="Enable verbose mode for detailed output.")
+    # Other optional arguments
+    parser.add_argument('-w', '--workers', type=int, help="Number of workers w to run the simulation.") # Number of cores by default
+
+    # Can't use -h because it's already used for help!
+    parser.add_argument('-H', '--heuristic', choices=['ff', 'nf', 'bf', 'wf'], help="Heuristic to use for partitioning.")
+    parser.add_argument('-s', '--sorting', choices=['iu', 'du'], help="Sort tasks by increasing or decreasing utilization.")
+
     # Force simulation
     parser.add_argument('-f', '--force-simulation', action='store_true', help="Force simulation if possible.")
 
     args = parser.parse_args()
-    # Validate 'version' argument for global, partitioned, or numeric k
-    if args.version not in ['global', 'partitioned']:
+    # Validate 'algorithm' argument for global, partitioned, or numeric k
+    if args.algorithm not in ['global', 'partitioned']:
         try:
-            args.k = int(args.version)  # Parse k as an integer if not global/partitioned
+            args.k = int(args.algorithm)  # Parse k as an integer if not global/partitioned
             if args.k <= 0:
                 raise ValueError
         except ValueError:
             parser.error(
-                "Invalid value for '-v/--version': must be 'global', 'partitioned', or a positive integer for EDF(k).")
+                "Invalid value for 'algorithm': must be 'global', 'partitioned', or a positive integer for EDF(k)."
+            )
     else:
         args.k = None  # No k-value if 'global' or 'partitioned' is selected
 
-    if args.version == 'partitioned' or args.k is not None and args.H is None:
-        parser.error("Heuristic [-H] must be specified for this algorithm.")
+    # Validate heuristic argument, it throws AttributeError if not specified
+    try:
+        if args.algorithm == 'partitioned' or args.k is not None and args.heuristic is None:
+            parser.error("Heuristic [-H] must be specified for this algorithm.")
+    except AttributeError:
+        parser.error("Heuristic [-H] must be specified for this algorithm. 2")
     return args
