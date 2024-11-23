@@ -130,6 +130,49 @@ def calculate_worst_case_response_time_with_priorities(task: Task, sorted_tasks:
         wcrt = next_wcrt
 
 """
+Demand Bound Function (DBF) for a task
+"""
+def demand_bound_function(task: Task, till_time: int) -> int:
+    # Calculate the demand bound function for a task
+    workload_contribution = math.floor(till_time - task.deadline / task.period) + 1
+    return max(0, workload_contribution) * task.computation_time
+
+"""
+DBF for a task set
+
+If total_demand > m * t, the task set is not schedulable
+"""
+def demand_bound_function_tasks(tasks: list[Task], till_time: int) -> int:
+    # Calculate the demand bound function for a task set
+    return sum(demand_bound_function(task, till_time) for task in tasks)
+
+"""
+Critical points for a task set
+"""
+def compute_critical_points(tasks: list[Task], t_max: int) -> list[int]:
+    critical_points = set()
+    for task in tasks:
+        k = 0
+        while task.offset + k * task.period <= t_max:
+            critical_points.add(task.offset + k * task.period)  # Release time
+            critical_points.add(task.offset + k * task.period + task.deadline)  # Deadline
+            k += 1
+    return sorted(list(critical_points))
+
+"""
+Iterative demand bound function for a task set, also calculates for each critical instant
+"""
+def demand_bound_function_iterative(tasks: list, till_time: int, num_processors: int) -> bool:
+    # Calculate the demand bound function for a task set
+    critical_points = compute_critical_points(tasks, till_time)
+    for t in critical_points:
+        total_demand = demand_bound_function_tasks(tasks, t)
+        print(f"DBF at time {t}: {total_demand}")
+        if total_demand > num_processors * t:
+            return False
+    return True
+
+"""
 GCD and LCM functions for calculating the hyper period and delta_t
 """
 def gcd(a: int, b: int) -> int:
@@ -159,7 +202,7 @@ def get_hyper_period(tasks: list) -> int:
     time_period_list = [task.period for task in tasks]
     return get_lcm(list(set(time_period_list)))
 
-def get_feasibility_interval(tasks: list) -> int:
+def get_feasibility_interval(tasks: list[Task]) -> int:
     # Calculate the maximum time for simulation
     o_max = max([task.offset for task in tasks])
     return o_max + 2 * get_hyper_period(tasks)
@@ -196,6 +239,14 @@ def get_delta_t(task_set: TaskSet) -> int:
 
     # Only unique values
     return get_gcd(list(set(time_period_list)))
+
+"""
+Smallest time increment for a list of tasks
+"""
+def get_delta_t_tasks(tasks: list[Task]) -> int:
+    # Calculate the greatest common divisor of the time periods of the tasks
+    task_set = TaskSet(tasks)
+    return get_delta_t(task_set)
 
 def get_busy_period(task_set: TaskSet) -> int:
     # Calculate the busy period for the given task set if feasibility interval is too large

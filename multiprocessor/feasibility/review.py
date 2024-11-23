@@ -1,4 +1,5 @@
 import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 from entities import TaskSet
@@ -29,6 +30,7 @@ def review_task_set_multi(algorithm: MultiprocessorSchedulerType,
     print(f"Checking task set: {task_file}")
 
     scheduler_return_val = edf_task_scheduler.is_feasible()
+    verbose = True
     if verbose:
         if scheduler_return_val == 0:
             print(f"The task set {task_file} is schedulable and you had to simulate the execution.")
@@ -42,6 +44,9 @@ def review_task_set_multi(algorithm: MultiprocessorSchedulerType,
             print(f"You can not tell if the task set {task_file} is schedulable or not.")
 
     return scheduler_return_val
+
+def process_task(task_set, task_file, algorithm, num_processors, num_clusters, heuristic, verbose, force_simulation):
+    return review_task_set_multi(algorithm, task_set, num_processors, num_clusters, heuristic, verbose, force_simulation, task_file)
 
 """
 Evaluate multiple task sets in a folder in parallel for multiprocessor systems!
@@ -70,24 +75,19 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
     for task_file in task_files:
         tasks.append((parse_task_file(task_file), task_file)) # (TaskSet, Path)
 
-    # Run the tasks in parallel and get the results
-    with multiprocessing.Pool(processes=number_of_workers) as pool:
-        results = [(task_set[0], # TaskSet
-                    task_set[1], # Path
-                    pool.apply_async(review_task_set_multi, args=(algorithm, task_set[0], num_processors, num_clusters, heuristic, verbose, force_simulation, task_set[1])))  # Scheduler result
-                   for task_set in tasks]
-        pool.close()
-        pool.join()
+    with ProcessPoolExecutor(max_workers=number_of_workers) as executor:
+        futures = {
+            executor.submit(process_task, task_set, task_file, algorithm, num_processors, num_clusters, heuristic,
+                            verbose, force_simulation): task_file for task_set, task_file in tasks}
 
-    total_files = len(tasks)
-    for task_set, task_file, async_result in results:
-        try:
-            scheduler_return_val = async_result.get(timeout=timeout)
-        except multiprocessing.TimeoutError:
-            print(f"Timeout for task set: {task_file}")
-            scheduler_return_val = 4
+        for future in as_completed(futures):
+            task_file = futures[future]
+            try:
+                scheduler_return_val = future.result()
+            except Exception as e:
+                print(f"Error processing task set {task_file}: {e}")
+                scheduler_return_val = 4
 
-        if scheduler_return_val is not None:
             if scheduler_return_val == 0:
                 schedulable_simulation += 1
             elif scheduler_return_val == 1:
@@ -99,6 +99,7 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
             elif scheduler_return_val == 4:
                 cannot_tell += 1
 
+    total_files = len(tasks)
     print(f"Total files considered: {total_files}")
 
     return {
@@ -106,5 +107,5 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
         MultiprocessorFeasibility.SCHEDULABLE_SHORTCUT: schedulable_no_simulation,
         MultiprocessorFeasibility.NOT_SCHEDULABLE_SIMULATION: not_schedulable_simulation,
         MultiprocessorFeasibility.NOT_SCHEDULABLE_SHORTCUT: not_schedulable_no_simulation,
-        MultiprocessorFeasibility.CANNOT_TELL: cannot_tell
+        MultiprocessorFeasibility.CANNOT_TELL: cannot_tell,
     }

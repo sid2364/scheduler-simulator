@@ -43,17 +43,6 @@ class PartitionHeuristic(ABC):
                 return None
         return cluster
 
-    """
-    Pretty print the clusters, their utilisation, and the tasks in each cluster
-    """
-    def pretty_print_clusters(self, clusters):
-        for cluster in clusters:
-            tasks = [f"T{task.task_id}" for task in cluster.tasks]
-            if self.verbose:
-                print(f"Cluster {cluster.cluster_id}: Utilisation = {cluster.get_utilisation()}"
-                  f"; Tasks = {', '.join(tasks)}")
-
-
 """
 First Fit, Best Fit, Worst Fit, Next Fit partitioning heuristics
 """
@@ -78,7 +67,6 @@ class BestFit(PartitionHeuristic):
                 if self.verbose:
                     print(f"Task {task.task_id} cannot fit in any cluster")
                 return None
-        self.pretty_print_clusters(clusters)
         return clusters
 
 class WorstFit(PartitionHeuristic):
@@ -101,7 +89,6 @@ class WorstFit(PartitionHeuristic):
                 if self.verbose:
                     print(f"Task {task.task_id} cannot fit in any cluster")
                 return None
-        self.pretty_print_clusters(clusters)
         return clusters
 
 class FirstFit(PartitionHeuristic):
@@ -122,7 +109,6 @@ class FirstFit(PartitionHeuristic):
                 if self.verbose:
                     print(f"Task {task.task_id} cannot fit in any cluster")
                 return None
-        self.pretty_print_clusters(clusters)
         return clusters
 
 class NextFit(PartitionHeuristic):
@@ -147,5 +133,4 @@ class NextFit(PartitionHeuristic):
                 if self.verbose:
                     print(f"Task {task.task_id} cannot fit in any cluster")
                 return None
-        self.pretty_print_clusters(clusters)
         return clusters

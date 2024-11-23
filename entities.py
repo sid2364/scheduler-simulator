@@ -50,6 +50,8 @@ class Task:
         Even though the job cannot not be in the list, since we are literally
         iterating over it! So we will just double (actually, triple) check
         that the job is in the list before removing it
+
+        Maybe this kind of list manipulation isn't somehow thread safe?
         """
         if job in self.jobs:
             self.jobs.remove(job)
