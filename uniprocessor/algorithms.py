@@ -86,7 +86,7 @@ class EarliestDeadlineFirst(Scheduler):
         return min(jobs, key=lambda job: job.get_deadline()).task if jobs else None
 
     def get_simulation_interval(self):
-        return get_first_idle_point(self.task_set)
+        return get_first_idle_point(self.task_set.tasks)
 
     def is_feasible(self):
         # EDF is optimal and will always be able to schedule the tasks if the utilisation is less than 1

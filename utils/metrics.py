@@ -210,14 +210,14 @@ def get_feasibility_interval(tasks: list[Task]) -> int:
 """
 First idle point in simulation, after 0
 """
-def get_first_idle_point(task_set: TaskSet) -> int:
+def get_first_idle_point(tasks: list[Task]) -> int:
     # Initialize w with the sum of all computation times
-    w = sum(task.computation_time for task in task_set.tasks)
+    w = sum(task.computation_time for task in tasks)
 
     while True:
         # Calculate the next iteration of w
         #w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
-        w_next = sum((w // task.period) * task.computation_time for task in task_set.tasks)
+        w_next = sum((w // task.period) * task.computation_time for task in tasks)
 
         # If the interval stabilizes, we have found L
         if w_next == w:

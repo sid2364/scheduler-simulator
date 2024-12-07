@@ -8,7 +8,7 @@ import multiprocessing
 from entities import TaskSet
 from multiprocessor.edfcluster import EDFCluster
 from multiprocessor.partitioner import PartitionHeuristic
-from utils.metrics import get_feasibility_interval, get_delta_t_tasks
+from utils.metrics import get_feasibility_interval, get_delta_t_tasks, get_first_idle_point
 
 MAX_ITERATIONS_LIMIT = 50_000_000  # Saves some time by exiting if we already know it's going to take too long
 MAX_SECONDS_LIMIT = 30  # Likely too high, but we can adjust this later!
@@ -147,9 +147,48 @@ class EDFk(ABC):
         self.clusters = [cluster for cluster in self.clusters if cluster.get_utilisation() != 0]
 
     """
+    Calculate m_min for the EDF-k scheduler
+    
+    This is a necessary condition for the schedulability of the task set
+    """
+    def calculate_m_min(self):
+        # Sort tasks by decreasing utilisation
+        sorted_tasks = sorted(self.task_set.tasks, key=lambda t: t.computation_time / t.period, reverse=True)
+
+        # Calculate cumulative utilisations
+        utilisations = [task.computation_time / task.period for task in sorted_tasks]
+        cumulative_utilisations = [sum(utilisations[:i + 1]) for i in range(len(utilisations))]
+
+        # Initialize m_min to absurdly large value
+        m_min = float('inf')
+
+        # Iterate over possible k values
+        for k in range(1, len(sorted_tasks) + 1):
+            U_taskset_k = cumulative_utilisations[k - 1]  # U(tau_k)
+            U_taskset_k_plus_1 = sum(utilisations[k:]) if k < len(utilisations) else 0  # U(tau^(k+1))
+
+            # Avoid division by zero for fully loaded k
+            if U_taskset_k >= 1:
+                continue
+
+            # Calculate m_min for this k
+            m_k = (k - 1) + U_taskset_k_plus_1 / (1 - U_taskset_k)
+            m_min = min(m_min, m_k)
+
+        return m_min
+
+    """
     Goossens's Bound 
     
+    U(i) ≤ m/k - (m/k - 1) * max(Ui) 
+    
+    This condition has been adapted from Global EDF to EDF(k)
+    
     Sufficiency condition which can be applied to each cluster (i.e., all algorithms)
+    How it works:
+    - If the total utilisation of the tasks in the cluster is less than the number of processors
+    - Then the cluster is schedulable
+    - Otherwise, it is not schedulable
     """
     def goossens_bound(self):
         if not self.is_partitioned:
@@ -163,7 +202,7 @@ class EDFk(ABC):
 
             # Apply Goossens's Bound to this cluster
             bound = processors_per_cluster - (processors_per_cluster - 1) * max_utilization
-            print(f"Cluster {cluster.cluster_id}: Total utilization = {total_utilization}, bound = {bound}")
+            if self.verbose: print(f"Cluster {cluster.cluster_id}: Total utilization = {total_utilization}, bound = {bound}")
             if total_utilization > bound:
                 if self.verbose:
                     print(f"Cluster {cluster.cluster_id}: Total utilization {total_utilization} exceeds bound {bound}.")
@@ -204,7 +243,7 @@ class EDFk(ABC):
                 #cluster_density = sum(task.computation_time / min(task.deadline, task.period) for task in cluster.tasks)
                 for task in cluster.tasks:
                     density = task.computation_time / min(task.deadline, task.period)
-                    print(f"Task {task.task_id} density: {density}, computation time: {task.computation_time}, deadline: {task.deadline}, period: {task.period}")
+                    if self.verbose: print(f"Task {task.task_id} density: {density}, computation time: {task.computation_time}, deadline: {task.deadline}, period: {task.period}")
                     cluster_density =+ density
 
                 if cluster_density > 1.0 * cluster.num_processors:  # "Local" processor capacity
@@ -235,12 +274,18 @@ class EDFk(ABC):
         # Check density
         # self.verbose = True
         if not self.check_density():
-            print("Density condition not met")
+            if self.verbose: print("Density condition not met")
             return 3
 
         # Check Goossens's Bound
         if self.goossens_bound():
             return 1
+
+        # Check that we have the minimum number of processors
+        m_min = self.calculate_m_min()
+        if m_min > self.m:
+            if self.verbose: print(f"m_min {m_min} is greater than m {self.m}")
+            return 3
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
@@ -365,6 +410,60 @@ class GlobalEDF(EDFk):
                          verbose=verbose,
                          force_simulation=force_simulation)
 
+
+    def verify_pessimistic_sufficient_condition(self):
+        # Check if the total utilisation of the tasks in the task set is less than m - (m - 1) * max(Ui)
+        total_utilisation = sum(task.computation_time / task.period for task in self.task_set.tasks)
+        max_utilisation = max(task.computation_time / task.period for task in self.task_set.tasks)
+        processors = self.m
+        bound = processors - (processors - 1) * max_utilisation
+        if total_utilisation <= bound:
+            return True
+
+    """
+    Main method to determine if the task set is schedulable or not
+
+    Return codes:
+    0 Schedulable and simulation was required.
+    1 Schedulable because some sufficient condition is met.
+    2 Not schedulable and simulation was required.
+    3 Not schedulable because a necessary condition does not hold.
+    4 You can not tell.
+    """
+    def is_feasible(self):
+        # If partitioning the task set into the clusters didn't work
+        # This implies the utilisation of the tasks is too high for the number of processors
+        if not self.is_partitioned:
+            return 3
+
+        # Check density
+        # self.verbose = True
+        if not self.check_density():
+            if self.verbose: print("Density condition not met")
+            return 3
+
+        # Check pessimistic sufficient condition
+        if self.verify_pessimistic_sufficient_condition():
+            return 1
+
+        # Check Goossens's Bound
+        if self.goossens_bound():
+            return 1
+
+        # Else we have to simulate the task set (in parallel)
+        feasible = 4  # Initialize feasible as unknown
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+            results = pool.map(self.simulate_taskset, self.clusters)
+
+        for ret_val in results:
+            if ret_val == 0:
+                feasible = 0  # Schedulable, but we continue to check other clusters
+            elif ret_val == 2:
+                return 2  # Not schedulable, no need to check other clusters
+            elif ret_val == 4:
+                return 4  # Timeout/Unknown, no need to check other clusters
+        return feasible
+
 """
 Partitioned EDF Scheduler
 
@@ -379,6 +478,10 @@ class PartitionedEDF(EDFk):
                          heuristic=heuristic,
                          verbose=verbose,
                          force_simulation=force_simulation)
+
+    def get_simulation_interval_for_cluster(self, cluster):
+        # Use get_first_idle_point() to get the first idle point in the task set for this cluster
+        return get_first_idle_point(cluster.tasks)
 
 """
 Get the scheduler object based on the algorithm type
