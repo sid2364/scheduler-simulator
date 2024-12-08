@@ -97,7 +97,7 @@ def parse_arguments_multiprocessor():
 
     # Validate heuristic argument, it throws AttributeError if not specified
     try:
-        if args.algorithm == 'partitioned' or args.k is not None and args.heuristic is None:
+        if (args.algorithm == 'partitioned' or args.k is not None) and args.heuristic is None:
             parser.error("Heuristic [-H] must be specified for this algorithm.")
     except AttributeError:
         parser.error("Heuristic [-H] must be specified for this algorithm. 2")
