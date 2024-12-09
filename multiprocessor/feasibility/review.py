@@ -27,10 +27,9 @@ def review_task_set_multi(algorithm: MultiprocessorSchedulerType,
 
     if verbose:
         print(f"Scheduler: {edf_task_scheduler}")
-    print(f"Checking task set: {task_file}")
+        print(f"Checking task set: {task_file}")
 
     scheduler_return_val = edf_task_scheduler.is_feasible()
-    verbose = True
     if verbose:
         if scheduler_return_val == 0:
             print(f"The task set {task_file} is schedulable and you had to simulate the execution.")

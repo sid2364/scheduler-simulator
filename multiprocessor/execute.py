@@ -1,4 +1,5 @@
 from pathlib import Path
+from tabnanny import verbose
 from time import time
 
 from multiprocessor.feasibility.review import review_task_set_multi, review_task_sets_in_parallel_multi
@@ -51,7 +52,7 @@ def execute_multiprocessor_system_experiments():
     path = Path(args.task_set_location)
     if path.is_dir():
         # Multiple task sets from a folder
-        print(f"Checking task sets in folder: {path}, for {algorithm}")
+        # print(f"Checking task sets in folder: {path}, for {algorithm}")
         schedule_stats = review_task_sets_in_parallel_multi(algorithm=algorithm,
                                                             folder_name=args.task_set_location,
                                                             num_processors=args.m,
@@ -74,14 +75,15 @@ def execute_multiprocessor_system_experiments():
         print(f"Time taken: {int(time() - start_time)} seconds")
         print(f"Return value: {ret_val}")
 
-        if ret_val == 0:
-            print(f"The task set {path} is schedulable and you had to simulate the execution.")
-        elif ret_val == 1:
-            print(f"The task set {path} is schedulable because some sufficient condition is met.")
-        elif ret_val == 2:
-            print(f"The task set {path} is not schedulable and you had to simulate the execution.")
-        elif ret_val == 3:
-            print(f"The task set {path} is not schedulable because a necessary condition does not hold.")
-        elif ret_val == 4:
-            print(f"Took too long to simulate the execution for {path}, exclude the task set.")
+        if verbose:
+            if ret_val == 0:
+                print(f"The task set {path} is schedulable and you had to simulate the execution.")
+            elif ret_val == 1:
+                print(f"The task set {path} is schedulable because some sufficient condition is met.")
+            elif ret_val == 2:
+                print(f"The task set {path} is not schedulable and you had to simulate the execution.")
+            elif ret_val == 3:
+                print(f"The task set {path} is not schedulable because a necessary condition does not hold.")
+            elif ret_val == 4:
+                print(f"Took too long to simulate the execution for {path}, exclude the task set.")
         exit(ret_val)
