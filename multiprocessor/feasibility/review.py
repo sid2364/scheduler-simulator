@@ -1,5 +1,5 @@
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
 from pathlib import Path
 
 from entities import TaskSet
@@ -74,10 +74,12 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
     for task_file in task_files:
         tasks.append((parse_task_file(task_file), task_file)) # (TaskSet, Path)
 
-    with ProcessPoolExecutor(max_workers=number_of_workers) as executor:
+    # with ProcessPoolExecutor(max_workers=number_of_workers) as executor:
+    with ThreadPoolExecutor(max_workers=number_of_workers) as executor:
         futures = {
             executor.submit(process_task, task_set, task_file, algorithm, num_processors, num_clusters, heuristic,
-                            verbose, force_simulation): task_file for task_set, task_file in tasks}
+                            verbose, force_simulation): task_file for task_set, task_file in tasks
+        }
 
         for future in as_completed(futures):
             task_file = futures[future]
