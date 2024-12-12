@@ -323,16 +323,26 @@ class EDFk(ABC):
 
         # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
         # User multiprocessing.Process instead of multiprocessing.Pool
-        with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
-            futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
-            for future in as_completed(futures):
-                ret_val = future.result()
-                if ret_val == 0:
-                    feasible = 0
-                elif ret_val == 2:
-                    return 2
-                elif ret_val == 4:
-                    return 4
+        # with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+        #     futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
+        #     for future in as_completed(futures):
+        #         ret_val = future.result()
+        #         if ret_val == 0:
+        #             feasible = 0
+        #         elif ret_val == 2:
+        #             return 2
+        #         elif ret_val == 4:
+        #             return 4
+
+        # Do everything sequentially
+        for cluster in self.clusters:
+            ret_val = self.simulate_taskset(cluster)
+            if ret_val == 0:
+                feasible = 0
+            elif ret_val == 2:
+                return 2
+            elif ret_val == 4:
+                return 4
 
         return feasible
 
