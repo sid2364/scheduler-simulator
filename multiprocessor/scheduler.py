@@ -490,16 +490,33 @@ class GlobalEDF(EDFk):
         feasible = 4  # Initialize feasible as unknown
 
         # Can use multiprocessing.cpu_count()
-        with multiprocessing.Pool(processes=2) as pool:
-            results = pool.map(self.simulate_taskset, self.clusters)
+        # with multiprocessing.Pool(processes=2) as pool:
+        #     results = pool.map(self.simulate_taskset, self.clusters)
+        #
+        # for ret_val in results:
+        #     if ret_val == 0:
+        #         feasible = 0  # Schedulable, but we continue to check other clusters
+        #     elif ret_val == 2:
+        #         return 2  # Not schedulable, no need to check other clusters
+        #     elif ret_val == 4:
+        #         return 4  # Timeout/Unknown, no need to check other clusters
 
-        for ret_val in results:
+        # Note: This logic is not used because we realised parallelising cluster scheduling is not useful
+        # as the overhead of creating new processes is too high for the small amount of work done in each process
+
+        # Also we are using parallel processing in the simulate_taskset method at taskset level
+        # Since daemon processes are not allowed to create child processes, we can't use multiprocessing.Pool again here
+
+        # Do everything sequentially
+        for cluster in self.clusters:
+            ret_val = self.simulate_taskset(cluster)
             if ret_val == 0:
-                feasible = 0  # Schedulable, but we continue to check other clusters
+                feasible = 0
             elif ret_val == 2:
-                return 2  # Not schedulable, no need to check other clusters
+                return 2
             elif ret_val == 4:
-                return 4  # Timeout/Unknown, no need to check other clusters
+                return 4
+
         return feasible
 
 """
