@@ -575,14 +575,24 @@ class PartitionedEDF(EDFk):
         #             return 4
 
         # Use multiprocessing.Pool and apply_async instead of ThreadPoolExecutor
-        with multiprocessing.Pool(processes=self.num_workers) as pool:
-            results = [pool.apply_async(self.simulate_taskset, args=(cluster,)) for cluster in self.clusters]
+        # with multiprocessing.Pool(processes=self.num_workers) as pool:
+        #     results = [pool.apply_async(self.simulate_taskset, args=(cluster,)) for cluster in self.clusters]
+        #
+        #     pool.close()
+        #     pool.join()
+        #
+        # for result in results:
+        #     ret_val = result.get()
+        #     if ret_val == 0:
+        #         feasible = 0
+        #     elif ret_val == 2:
+        #         return 2
+        #     elif ret_val == 4:
+        #         return 4
 
-            pool.close()
-            pool.join()
-
-        for result in results:
-            ret_val = result.get()
+        # Do everything sequentially
+        for cluster in self.clusters:
+            ret_val = self.simulate_taskset(cluster)
             if ret_val == 0:
                 feasible = 0
             elif ret_val == 2:
