@@ -150,16 +150,3 @@ def plot_success_rate(success_rates, plot_title, xlabel):
     plt.grid(True, axis="y")  # Only grid on y-axis for clarity
     plt.tight_layout()
     plt.show()
-
-def plot_average_execution_time(average_time_results, plot_title, workers):
-    plt.figure(figsize=(12, 6))
-
-    # Define categorical positions for each x-axis category
-    categories = list(next(iter(average_time_results.values())).keys())
-    x_positions = range(workers)  # Evenly spaced positions
-
-    # Define a fixed width for the bars
-    width = 0.15
-    
-    # Set the categorical labels
-    plt.show()
