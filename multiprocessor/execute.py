@@ -45,7 +45,7 @@ def execute_multiprocessor_system_experiments():
             heuristic = WorstFit(is_decreasing_utilisation, verbose=args.verbose)
 
     workers = args.workers if args.workers is not None else NUMBER_OF_PARALLEL_PROCESSES
-    
+
     start_time = time()
 
     # Check if the address corresponds to a single dataset or if it is a folder containing many

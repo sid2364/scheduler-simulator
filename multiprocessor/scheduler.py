@@ -1,4 +1,5 @@
 from abc import ABC
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from tabnanny import verbose
@@ -195,7 +196,7 @@ class EDFk(ABC):
         return m_min
 
     """
-    Goossens's Bound 
+    Utilisation Bound 
     
     U(i) ≤ m/k - (m/k - 1) * max(Ui) 
     
@@ -207,11 +208,11 @@ class EDFk(ABC):
     - Then the cluster is schedulable
     - Otherwise, it is not schedulable
     """
-    def goossens_bound(self):
+    def check_utilisation_bound(self):
         if not self.is_partitioned:
             return False
 
-        # Check Goossens's Bound for each cluster
+        # Check Utilisation Bound for each cluster
         processors_per_cluster = self.m / self.k
         # print(f"Processors per cluster: {processors_per_cluster}")
         for cluster in self.clusters:
@@ -219,7 +220,7 @@ class EDFk(ABC):
             max_utilization = max(task.computation_time / task.period for task in cluster.tasks)
             # print(f"Total utilization: {total_utilization}, max utilization: {max_utilization}")
 
-            # Apply Goossens's Bound to this cluster
+            # Apply Utilisation Bound to this cluster
             bound = processors_per_cluster - (processors_per_cluster - 1) * max_utilization
             # print(f"Bound: {bound}")
             if self.verbose: print(f"Cluster {cluster.cluster_id}: Total utilization = {total_utilization}, bound = {bound}")
@@ -296,9 +297,9 @@ class EDFk(ABC):
             if self.verbose: print("Density condition not met")
             return 3
 
-        # Check Goossens's Bound
-        if not self.goossens_bound():
-            if self.verbose: print("Goossens's bound not met")
+        # Check Utilisation Bound
+        if not self.check_utilisation_bound():
+            if self.verbose: print("Utilisation bound condition not met")
             return 3
 
         # Check that we have the minimum number of processors
@@ -309,16 +310,30 @@ class EDFk(ABC):
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
-        with multiprocessing.Pool(processes=self.num_workers) as pool:
-            results = pool.map(self.simulate_taskset, self.clusters)
+        # with multiprocessing.Pool(processes=self.num_workers) as pool:
+        #     results = pool.map(self.simulate_taskset, self.clusters)
+        #
+        # for ret_val in results:
+        #     if ret_val == 0:
+        #         feasible = 0  # Schedulable, but we continue to check other clusters
+        #     elif ret_val == 2:
+        #         return 2  # Not schedulable, no need to check other clusters
+        #     elif ret_val == 4:
+        #         return 4  # Timeout/Unknown, no need to check other clusters
 
-        for ret_val in results:
-            if ret_val == 0:
-                feasible = 0  # Schedulable, but we continue to check other clusters
-            elif ret_val == 2:
-                return 2  # Not schedulable, no need to check other clusters
-            elif ret_val == 4:
-                return 4  # Timeout/Unknown, no need to check other clusters
+        # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
+        # User multiprocessing.Process instead of multiprocessing.Pool
+        with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+            futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
+            for future in as_completed(futures):
+                ret_val = future.result()
+                if ret_val == 0:
+                    feasible = 0
+                elif ret_val == 2:
+                    return 2
+                elif ret_val == 4:
+                    return 4
+
         return feasible
 
 
@@ -467,8 +482,8 @@ class GlobalEDF(EDFk):
         if self.verify_pessimistic_sufficient_condition():
             return 1
 
-        # Check Goossens's Bound
-        if self.goossens_bound():
+        # Check Utilisation Bound
+        if self.check_utilisation_bound():
             return 1
 
         # Else we have to simulate the task set (in parallel)
@@ -528,26 +543,56 @@ class PartitionedEDF(EDFk):
             if self.verbose: print("Density condition not met")
             return 3
 
-        # Check Goossens's Bound
-        if not self.goossens_bound_partitioned():
-            if self.verbose: print("Goossens's Bound not met")
+        # Check Utilisation Bound
+        if not self.utilisation_bound_partitioned():
+            if self.verbose: print("Utilisation Bound not met")
             return 3
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
-        with multiprocessing.Pool(processes=self.num_workers) as pool:
-            results = pool.map(self.simulate_taskset, self.clusters)
+        # with multiprocessing.Pool(processes=self.num_workers) as pool:
+        #     results = pool.map(self.simulate_taskset, self.clusters)
+        #
+        # for ret_val in results:
+        #     if ret_val == 0:
+        #         feasible = 0  # Schedulable, but we continue to check other clusters
+        #     elif ret_val == 2:
+        #         return 2  # Not schedulable, no need to check other clusters
+        #     elif ret_val == 4:
+        #         return 4  # Timeout/Unknown, no need to check other clusters
 
-        for ret_val in results:
+        # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
+        # # User multiprocessing.Process instead of multiprocessing.Pool
+        # with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+        #     futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
+        #     for future in as_completed(futures):
+        #         ret_val = future.result()
+        #         if ret_val == 0:
+        #             feasible = 0
+        #         elif ret_val == 2:
+        #             return 2
+        #         elif ret_val == 4:
+        #             return 4
+
+        # Use multiprocessing.Pool and apply_async instead of ThreadPoolExecutor
+        with multiprocessing.Pool(processes=self.num_workers) as pool:
+            results = [pool.apply_async(self.simulate_taskset, args=(cluster,)) for cluster in self.clusters]
+
+            pool.close()
+            pool.join()
+
+        for result in results:
+            ret_val = result.get()
             if ret_val == 0:
-                feasible = 0  # Schedulable, but we continue to check other clusters
+                feasible = 0
             elif ret_val == 2:
-                return 2  # Not schedulable, no need to check other clusters
+                return 2
             elif ret_val == 4:
-                return 4  # Timeout/Unknown, no need to check other clusters
+                return 4
+
         return feasible
 
-    def goossens_bound_partitioned(self):
+    def utilisation_bound_partitioned(self):
         # Check that every cluster has total utilisation less than 1
         for cluster in self.clusters:
             total_utilisation = sum(task.computation_time / task.period for task in cluster.tasks)

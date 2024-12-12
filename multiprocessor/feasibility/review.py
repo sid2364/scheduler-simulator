@@ -1,5 +1,6 @@
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
+from hashlib import algorithms_available
 from pathlib import Path
 
 from entities import TaskSet
@@ -55,8 +56,8 @@ Evaluate multiple task sets in a folder in parallel for multiprocessor systems!
 def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
                                        folder_name: str,
                                        num_processors: int,
-                                       num_clusters: int,
-                                       heuristic: PartitionHeuristic,
+                                       num_clusters: int = 1,
+                                       heuristic: PartitionHeuristic = BestFit(),
                                        number_of_workers: int = 8,
                                        verbose=False,
                                        timeout=10,
@@ -75,45 +76,95 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
     tasks = []
     for task_file in task_files:
         tasks.append((parse_task_file(task_file), task_file)) # (TaskSet, Path)
-    #
-    # with ProcessPoolExecutor(max_workers=number_of_workers) as executor:
-    # # with ThreadPoolExecutor(max_workers=number_of_workers) as executor:
-    #     futures = {
-    #         executor.submit(process_task, task_set, task_file, algorithm, num_processors, num_clusters, heuristic,
-    #                         number_of_workers, verbose, force_simulation): task_file for task_set, task_file in tasks
-    #     }
-    #
-    #     for future in as_completed(futures):
-    #         task_file = futures[future]
-    #         try:
-    #             scheduler_return_val = future.result()
-    #         except Exception as e:
-    #             print(f"Error processing task set {task_file}: {e}")
-    #             scheduler_return_val = 4
-    #
-    #         if scheduler_return_val == 0:
-    #             schedulable_simulation += 1
-    #         elif scheduler_return_val == 1:
-    #             schedulable_no_simulation += 1
-    #         elif scheduler_return_val == 2:
-    #             not_schedulable_simulation += 1
-    #         elif scheduler_return_val == 3:
-    #             not_schedulable_no_simulation += 1
-    #         elif scheduler_return_val == 4:
-    #             cannot_tell += 1
 
-    for task_set, task_file in tasks:
-        scheduler_return_val = review_task_set_multi(algorithm, task_set, num_processors, num_clusters, heuristic, number_of_workers, verbose, force_simulation, task_file)
-        if scheduler_return_val == 0:
-            schedulable_simulation += 1
-        elif scheduler_return_val == 1:
-            schedulable_no_simulation += 1
-        elif scheduler_return_val == 2:
-            not_schedulable_simulation += 1
-        elif scheduler_return_val == 3:
-            not_schedulable_no_simulation += 1
-        elif scheduler_return_val == 4:
-            cannot_tell += 1
+    # Calculate how many workers can go towards the algorithms and how many towards the task sets
+    # This is because both the algorithms and the task sets can be parallelized, but
+    # it doesn't make sense to give the algorithms more workers than the number of processors in all cases
+    if algorithm == MultiprocessorSchedulerType.PARTITIONED_EDF:
+        # We need at least m workers for the algorithms
+        algorithm_workers = min(number_of_workers, num_processors)
+        taskset_workers = number_of_workers - algorithm_workers
+    elif algorithm == MultiprocessorSchedulerType.GLOBAL_EDF:
+        # We can't parallelize the algorithm, so just one for the algorithm and the rest for the task sets
+        algorithm_workers = 1
+        taskset_workers = number_of_workers - algorithm_workers
+    else:
+        # At least k workers for the algorithms, and rest for the task sets
+        algorithm_workers = max(number_of_workers, num_clusters)
+        taskset_workers = number_of_workers - algorithm_workers
+
+    print(f"Number of workers for the task sets: {taskset_workers}")
+    print(f"Number of workers for the algorithms: {algorithm_workers}")
+
+    if taskset_workers < 1:
+        # Cannot parallelize the task sets
+        for task_set, task_file in tasks:
+            scheduler_return_val = review_task_set_multi(algorithm, task_set, num_processors, num_clusters, heuristic, number_of_workers, verbose, force_simulation, task_file)
+            if scheduler_return_val == 0:
+                schedulable_simulation += 1
+            elif scheduler_return_val == 1:
+                schedulable_no_simulation += 1
+            elif scheduler_return_val == 2:
+                not_schedulable_simulation += 1
+            elif scheduler_return_val == 3:
+                not_schedulable_no_simulation += 1
+            elif scheduler_return_val == 4:
+                cannot_tell += 1
+    else:
+        # Parallelize the task sets! I am speed!
+
+        with ProcessPoolExecutor(max_workers=taskset_workers) as executor:
+        #with ThreadPoolExecutor(max_workers=taskset_workers) as executor:
+            futures = {
+                executor.submit(process_task, task_set, task_file, algorithm, num_processors, num_clusters, heuristic,
+                                algorithm_workers, verbose, force_simulation): task_file for task_set, task_file in tasks
+            }
+
+            for future in as_completed(futures):
+                task_file = futures[future]
+                try:
+                    scheduler_return_val = future.result()
+                except Exception as e:
+                    print(f"Error processing task set {task_file}: {e}")
+                    scheduler_return_val = 4
+
+                if scheduler_return_val == 0:
+                    schedulable_simulation += 1
+                elif scheduler_return_val == 1:
+                    schedulable_no_simulation += 1
+                elif scheduler_return_val == 2:
+                    not_schedulable_simulation += 1
+                elif scheduler_return_val == 3:
+                    not_schedulable_no_simulation += 1
+                elif scheduler_return_val == 4:
+                    cannot_tell += 1
+        #
+        # with multiprocessing.Pool(processes=taskset_workers) as pool:
+        #     results = [(task_set[0], # TaskSet
+        #                 task_set[1], # Path
+        #                 pool.apply_async(review_task_set_multi, args=(algorithm, task_set[0], num_processors, num_clusters, heuristic, algorithm_workers, verbose, force_simulation, task_set[1])))  # Scheduler result
+        #                 for task_set in tasks]
+        #     pool.close()
+        #     pool.join()
+        #
+        # for task_set, task_file, async_result in results:
+        #     try:
+        #         value = async_result.get(timeout=timeout)
+        #     except multiprocessing.TimeoutError:
+        #         print(f"Timeout error occurred for set: {task_file}")
+        #         value = 4
+        #     if value is not None:
+        #         if value == 0:
+        #             schedulable_simulation += 1
+        #         elif value == 1:
+        #             schedulable_no_simulation += 1
+        #         elif value == 2:
+        #             not_schedulable_simulation += 1
+        #         elif value == 3:
+        #             not_schedulable_no_simulation += 1
+        #         elif value == 4:
+        #             cannot_tell += 1
+
 
     total_files = len(tasks)
     print(f"Total files considered: {total_files}")
