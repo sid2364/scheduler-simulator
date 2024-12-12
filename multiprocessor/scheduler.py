@@ -1,4 +1,5 @@
 from abc import ABC
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
 from tabnanny import verbose
@@ -38,6 +39,7 @@ class EDFk(ABC):
                  num_clusters: int,
                  num_processors: int,
                  heuristic: PartitionHeuristic or None,
+                 num_workers: int,
                  verbose=False,
                  force_simulation=False):
         self.task_set = task_set
@@ -45,12 +47,16 @@ class EDFk(ABC):
         assert num_clusters <= num_processors, "Number of clusters must be less than or equal to the number of processors"
         self.k = num_clusters
         self.m = num_processors
+        # print(f"Number of clusters: {self.k}, Number of processors: {self.m}")
 
         self.heuristic = heuristic
         self.clusters = []
 
         self.verbose = verbose
         self.force_simulation = force_simulation
+
+        self.num_workers = num_workers
+        # print(f"Number of workers: {self.num_workers}")
 
         self.__post_init__()
 
@@ -68,21 +74,32 @@ class EDFk(ABC):
     """
     Creates m/k clusters for the EDF(k) scheduler
     
-    If k = 1, this is partitioned EDF
-    If k = m, this is global EDF
+    If k = m, this is partitioned EDF
+    If k = 1, this is global EDF
     Otherwise, it is a hybrid of the two, EDF(k)
     """
     def init_clusters(self):
         # Divide processors into clusters of size k
-        num_clusters = self.m // self.k
-        remaining_processors = self.m % self.k # Except, we also have sometimes an uneven division
+        if self.k == 1:
+            # Global EDF
+            self.clusters.append(EDFCluster(self.m))
 
-        self.clusters.clear()
-        for _ in range(num_clusters):
-            self.clusters.append(EDFCluster(self.k))
+        elif self.k == self.m:
+            # Partitioned EDF, create m clusters
+            for _ in range(self.m):
+                self.clusters.append(EDFCluster(1))
+        else:
+            # EDF(k)
+            num_clusters = self.m // self.k
+            # print(f"Number of clusters: {num_clusters}")
+            remaining_processors = self.m % self.k # Except, we also have sometimes an uneven division
 
-        if remaining_processors > 0:
-            self.clusters.append(EDFCluster(remaining_processors))
+            self.clusters.clear()
+            for _ in range(num_clusters):
+                self.clusters.append(EDFCluster(self.k))
+
+            if remaining_processors > 0:
+                self.clusters.append(EDFCluster(remaining_processors))
         if self.verbose: print(f"Initialized {len(self.clusters)} clusters")
 
     """
@@ -102,12 +119,13 @@ class EDFk(ABC):
     """
     def partition_taskset(self):
         # Partition the task set into the clusters based on k and m
-        if self.k == self.m or self.heuristic is None:
+        if self.k == 1 or self.heuristic is None:
             # Global EDF
+            # print("Clusters=", self.clusters)
             if len(self.clusters) == 1:
                 cluster = self.clusters[0]
             else:
-                raise ValueError("Global EDF should only have one cluster")
+                raise ValueError("Global EDF should only have 'one' theoretical cluster")
 
             for task in self.task_set.tasks:
                 found_fit = cluster.add_task(task)
@@ -178,7 +196,7 @@ class EDFk(ABC):
         return m_min
 
     """
-    Goossens's Bound 
+    Utilisation Bound 
     
     U(i) ≤ m/k - (m/k - 1) * max(Ui) 
     
@@ -190,24 +208,27 @@ class EDFk(ABC):
     - Then the cluster is schedulable
     - Otherwise, it is not schedulable
     """
-    def goossens_bound(self):
+    def check_utilisation_bound(self):
         if not self.is_partitioned:
             return False
 
-        # Check Goossens's Bound for each cluster
+        # Check Utilisation Bound for each cluster
         processors_per_cluster = self.m / self.k
+        # print(f"Processors per cluster: {processors_per_cluster}")
         for cluster in self.clusters:
             total_utilization = sum(task.computation_time / task.period for task in cluster.tasks)
             max_utilization = max(task.computation_time / task.period for task in cluster.tasks)
+            # print(f"Total utilization: {total_utilization}, max utilization: {max_utilization}")
 
-            # Apply Goossens's Bound to this cluster
+            # Apply Utilisation Bound to this cluster
             bound = processors_per_cluster - (processors_per_cluster - 1) * max_utilization
+            # print(f"Bound: {bound}")
             if self.verbose: print(f"Cluster {cluster.cluster_id}: Total utilization = {total_utilization}, bound = {bound}")
             if total_utilization > bound:
                 if self.verbose:
                     print(f"Cluster {cluster.cluster_id}: Total utilization {total_utilization} exceeds bound {bound}.")
                 return False
-
+        # print("All clusters satisfy the bound")
         # If all clusters satisfy the bound
         return True
 
@@ -272,14 +293,14 @@ class EDFk(ABC):
             return 3
 
         # Check density
-        # self.verbose = True
         if not self.check_density():
             if self.verbose: print("Density condition not met")
             return 3
 
-        # Check Goossens's Bound
-        if self.goossens_bound():
-            return 1
+        # Check Utilisation Bound
+        if not self.check_utilisation_bound():
+            if self.verbose: print("Utilisation bound condition not met")
+            return 3
 
         # Check that we have the minimum number of processors
         m_min = self.calculate_m_min()
@@ -289,16 +310,30 @@ class EDFk(ABC):
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            results = pool.map(self.simulate_taskset, self.clusters)
+        # with multiprocessing.Pool(processes=self.num_workers) as pool:
+        #     results = pool.map(self.simulate_taskset, self.clusters)
+        #
+        # for ret_val in results:
+        #     if ret_val == 0:
+        #         feasible = 0  # Schedulable, but we continue to check other clusters
+        #     elif ret_val == 2:
+        #         return 2  # Not schedulable, no need to check other clusters
+        #     elif ret_val == 4:
+        #         return 4  # Timeout/Unknown, no need to check other clusters
 
-        for ret_val in results:
-            if ret_val == 0:
-                feasible = 0  # Schedulable, but we continue to check other clusters
-            elif ret_val == 2:
-                return 2  # Not schedulable, no need to check other clusters
-            elif ret_val == 4:
-                return 4  # Timeout/Unknown, no need to check other clusters
+        # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
+        # User multiprocessing.Process instead of multiprocessing.Pool
+        with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+            futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
+            for future in as_completed(futures):
+                ret_val = future.result()
+                if ret_val == 0:
+                    feasible = 0
+                elif ret_val == 2:
+                    return 2
+                elif ret_val == 4:
+                    return 4
+
         return feasible
 
 
@@ -402,11 +437,12 @@ This is the EDF(k) scheduler where k = m, everything else is the same
 """
 class GlobalEDF(EDFk):
     scheduler_type = MultiprocessorSchedulerType.GLOBAL_EDF
-    def __init__(self, task_set, num_processors, verbose=False, force_simulation=False):
+    def __init__(self, task_set, num_processors, num_workers, verbose=False, force_simulation=False):
         super().__init__(task_set,
-                         num_clusters=num_processors,
+                         num_clusters=1,
                          num_processors=num_processors,
                          heuristic=None,
+                         num_workers=num_workers,
                          verbose=verbose,
                          force_simulation=force_simulation)
 
@@ -446,13 +482,15 @@ class GlobalEDF(EDFk):
         if self.verify_pessimistic_sufficient_condition():
             return 1
 
-        # Check Goossens's Bound
-        if self.goossens_bound():
+        # Check Utilisation Bound
+        if self.check_utilisation_bound():
             return 1
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+
+        # Can use multiprocessing.cpu_count()
+        with multiprocessing.Pool(processes=2) as pool:
             results = pool.map(self.simulate_taskset, self.clusters)
 
         for ret_val in results:
@@ -471,28 +509,109 @@ When k = 1, there are as many clusters as there are processors, i.e. no migratio
 """
 class PartitionedEDF(EDFk):
     scheduler_type = MultiprocessorSchedulerType.PARTITIONED_EDF
-    def __init__(self, task_set, num_processors, heuristic, verbose=False, force_simulation=False):
+    def __init__(self, task_set, num_processors, heuristic, num_workers, verbose=False, force_simulation=False):
         super().__init__(task_set,
-                         num_clusters=1,
+                         num_clusters=num_processors,
                          num_processors=num_processors,
                          heuristic=heuristic,
+                         num_workers=num_workers,
                          verbose=verbose,
                          force_simulation=force_simulation)
 
     def get_simulation_interval_for_cluster(self, cluster):
-        # Use get_first_idle_point() to get the first idle point in the task set for this cluster
+        # Use get_feasibility_interval() to get the first idle point in the task set for this cluster
         return get_first_idle_point(cluster.tasks)
+
+    """
+        Main method to determine if the task set is schedulable or not
+
+        Return codes:
+        0 Schedulable and simulation was required.
+        1 Schedulable because some sufficient condition is met.
+        2 Not schedulable and simulation was required.
+        3 Not schedulable because a necessary condition does not hold.
+        4 You can not tell.
+        """
+    def is_feasible(self):
+        # If partitioning the task set into the clusters didn't work
+        # This implies the utilisation of the tasks is too high for the number of processors
+        if not self.is_partitioned:
+            return 3
+
+        # Check density
+        if not self.check_density():
+            if self.verbose: print("Density condition not met")
+            return 3
+
+        # Check Utilisation Bound
+        if not self.utilisation_bound_partitioned():
+            if self.verbose: print("Utilisation Bound not met")
+            return 3
+
+        # Else we have to simulate the task set (in parallel)
+        feasible = 4  # Initialize feasible as unknown
+        # with multiprocessing.Pool(processes=self.num_workers) as pool:
+        #     results = pool.map(self.simulate_taskset, self.clusters)
+        #
+        # for ret_val in results:
+        #     if ret_val == 0:
+        #         feasible = 0  # Schedulable, but we continue to check other clusters
+        #     elif ret_val == 2:
+        #         return 2  # Not schedulable, no need to check other clusters
+        #     elif ret_val == 4:
+        #         return 4  # Timeout/Unknown, no need to check other clusters
+
+        # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
+        # # User multiprocessing.Process instead of multiprocessing.Pool
+        # with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+        #     futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
+        #     for future in as_completed(futures):
+        #         ret_val = future.result()
+        #         if ret_val == 0:
+        #             feasible = 0
+        #         elif ret_val == 2:
+        #             return 2
+        #         elif ret_val == 4:
+        #             return 4
+
+        # Use multiprocessing.Pool and apply_async instead of ThreadPoolExecutor
+        with multiprocessing.Pool(processes=self.num_workers) as pool:
+            results = [pool.apply_async(self.simulate_taskset, args=(cluster,)) for cluster in self.clusters]
+
+            pool.close()
+            pool.join()
+
+        for result in results:
+            ret_val = result.get()
+            if ret_val == 0:
+                feasible = 0
+            elif ret_val == 2:
+                return 2
+            elif ret_val == 4:
+                return 4
+
+        return feasible
+
+    def utilisation_bound_partitioned(self):
+        # Check that every cluster has total utilisation less than 1
+        for cluster in self.clusters:
+            total_utilisation = sum(task.computation_time / task.period for task in cluster.tasks)
+            if total_utilisation > 1:
+                if self.verbose: print(f"Cluster {cluster.cluster_id} has total utilisation {total_utilisation} > 1")
+                return False
+        return True
+
 
 """
 Get the scheduler object based on the algorithm type
 """
-def get_multi_scheduler(algorithm: MultiprocessorSchedulerType, task_set: TaskSet, m: int, k: int, heuristic: PartitionHeuristic, verbose=False, force_simulation=False):
+def get_multi_scheduler(algorithm: MultiprocessorSchedulerType, task_set: TaskSet, m: int, k: int, heuristic: PartitionHeuristic, num_workers: int, verbose=False, force_simulation=False):
     if algorithm == MultiprocessorSchedulerType.GLOBAL_EDF:
-        edf_scheduler = GlobalEDF(task_set, m, verbose, force_simulation)
+        edf_scheduler = GlobalEDF(task_set, m, num_workers, verbose, force_simulation)
     elif algorithm == MultiprocessorSchedulerType.PARTITIONED_EDF:
-        edf_scheduler = PartitionedEDF(task_set, m, heuristic, verbose, force_simulation)
+        edf_scheduler = PartitionedEDF(task_set, m, heuristic, num_workers,  verbose, force_simulation)
     elif algorithm == MultiprocessorSchedulerType.EDF_K:
-        edf_scheduler = EDFk(task_set, k, m, heuristic, verbose, force_simulation)
+        edf_scheduler = EDFk(task_set, k, m, heuristic, num_workers, verbose, force_simulation)
     else:
         raise ValueError("Invalid algorithm type")
     return edf_scheduler

@@ -214,16 +214,30 @@ def get_first_idle_point(tasks: list[Task]) -> int:
     # Initialize w with the sum of all computation times
     w = sum(task.computation_time for task in tasks)
 
-    while True:
-        # Calculate the next iteration of w
-        #w_next = sum(math.ceil(w / task.period) * task.computation_time for task in task_set.tasks)
-        w_next = sum((w // task.period) * task.computation_time for task in tasks)
+    # Calculate the hyper-period to set an upper bound
+    hyper_period = get_hyper_period(tasks)
 
-        # If the interval stabilizes, we have found L
+    # Set an upper limit to prevent infinite loops
+    upper_bound = min(hyper_period, 50_000_000)
+
+    while w <= upper_bound:
+        w_next = 0
+        for task in tasks:
+            # For each task, consider the number of releases within [0, w]
+            # Using the minimum of deadline and period for accurate calculation
+            interval = min(task.deadline, task.period)
+            num_releases = math.ceil(w / interval)
+            w_next += num_releases * task.computation_time
+
+        # If the interval stabilizes, we have found the first idle point
         if w_next == w:
             return w_next
+
+        # Update w for the next iteration
         w = w_next
-        print(f"First idle point: {w}")
+
+    # If no idle point is found within the upper bound, return the upper bound
+    return upper_bound
 
 """
 Smallest time increment, used to make simulation step through quicker
