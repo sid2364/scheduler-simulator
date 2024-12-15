@@ -142,13 +142,10 @@ class EDFk(ABC):
             return True
 
     """
-    We get the feasibility interval from each cluster
+    We get the feasibility interval for each cluster
     """
     def get_simulation_interval_for_cluster(self, cluster):
-        feasibility_interval = 0
-        hyper_period = get_feasibility_interval(cluster.tasks)
-        if hyper_period > feasibility_interval:
-            feasibility_interval = hyper_period
+        feasibility_interval = get_feasibility_interval(cluster.tasks)
         if self.verbose: print(f"Feasibility interval: {feasibility_interval}")
         return feasibility_interval
 
@@ -243,13 +240,13 @@ class EDFk(ABC):
             density = task.computation_time / min(task.deadline, task.period)
             total_density += density
 
-            # For Partitioned EDF, each task must have density ≤ 1
-            if self.k == 1 and density > 1:
+            # For Partitioned EDF, each task must have density <= 1
+            if self.k == self.m and density > 1:
                 if self.verbose: print(f"Task {task.task_id} has density > 1 and cannot fit into any processor.")
                 return False
 
         # For Global EDF - Could move this to GlobalEDF class!
-        if self.k is None or self.k == self.m:
+        if self.k is None or self.k == 1:
             if total_density <= self.m:
                 return True
             else:
@@ -362,6 +359,8 @@ class EDFk(ABC):
         time_step = get_delta_t_tasks(cluster.tasks)
 
         time_max = self.get_simulation_interval_for_cluster(cluster)
+        if self.verbose: print(f"Time max: {time_max}")
+
         if self.is_task_set_too_long(time_max):
             return 4
 
@@ -547,7 +546,7 @@ class PartitionedEDF(EDFk):
 
     def get_simulation_interval_for_cluster(self, cluster):
         # Use get_feasibility_interval() to get the first idle point in the task set for this cluster
-        return get_first_idle_point(cluster.tasks)
+        return get_feasibility_interval(cluster.tasks)
 
     """
         Main method to determine if the task set is schedulable or not

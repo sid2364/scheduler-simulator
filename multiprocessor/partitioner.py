@@ -53,10 +53,10 @@ class BestFit(PartitionHeuristic):
         # print(f"Sorted tasks: {sorted_tasks}")
         for task in sorted_tasks:
             # Find the cluster with the least utilization
-            min_utilization_clusters = sorted(clusters, key=lambda x: x.get_utilisation(), reverse=True)
+            max_utilization_clusters = sorted(clusters, key=lambda x: x.get_utilisation(), reverse=True)
             # Check if the task can fit in the clusters in this order
             found_fit = False
-            for cluster in min_utilization_clusters:
+            for cluster in max_utilization_clusters:
                 found_fit = cluster.add_task(task)
                 if found_fit:
                     if self.verbose:
@@ -75,10 +75,10 @@ class WorstFit(PartitionHeuristic):
         sorted_tasks = sort_tasks_by_utilization(task_set.tasks, self.decreasing_utilisation) # Decreasing utilization is from the parent class
         for task in sorted_tasks:
             # Find the cluster with the most utilization
-            max_utilization_clusters = sorted(clusters, key=lambda x: x.get_utilisation(), reverse=True)
+            min_utilization_clusters = sorted(clusters, key=lambda x: x.get_utilisation()) # reverse=False
             # Check if the task can fit in the clusters in this order
             found_fit = False
-            for cluster in max_utilization_clusters:
+            for cluster in min_utilization_clusters:
                 found_fit = cluster.add_task(task)
                 if found_fit:
                     if self.verbose:

@@ -188,6 +188,7 @@ def get_lcm(time_period_list: list) -> int:
     lcm_value = time_period_list[0]
     for i in time_period_list[1:]:
         lcm_value = lcm(lcm_value, i)
+    # print(f"LCM: {lcm_value}")
     return lcm_value
 
 def get_gcd(time_value_list: list) -> int:
@@ -200,11 +201,13 @@ def get_gcd(time_value_list: list) -> int:
 def get_hyper_period(tasks: list) -> int:
     # Calculate the hyper period of a task set
     time_period_list = [task.period for task in tasks]
+    # print(f"Time periods: {time_period_list}")
     return get_lcm(list(set(time_period_list)))
 
 def get_feasibility_interval(tasks: list[Task]) -> int:
     # Calculate the maximum time for simulation
     o_max = max([task.offset for task in tasks])
+    # print(f"Offset max: {o_max}")
     return o_max + 2 * get_hyper_period(tasks)
 
 """
