@@ -3,8 +3,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExec
 from hashlib import algorithms_available
 from pathlib import Path
 
+from matplotlib import pyplot as plt
+
 from entities import TaskSet
-from multiprocessor.partitioner import PartitionHeuristic, BestFit
+from multiprocessor.partitioner import PartitionHeuristic, BestFit, FirstFit, NextFit, WorstFit
 from multiprocessor.scheduler import MultiprocessorSchedulerType, get_multi_scheduler
 from utils.metrics import MultiprocessorFeasibility
 from utils.parse import parse_task_file
@@ -47,8 +49,28 @@ def review_task_set_multi(algorithm: MultiprocessorSchedulerType,
 
     return scheduler_return_val
 
-def process_task(task_set, task_file, algorithm, num_processors, num_clusters, heuristic, num_workers, verbose, force_simulation):
-    return review_task_set_multi(algorithm, task_set, num_processors, num_clusters, heuristic, num_workers, verbose, force_simulation, task_file)
+"""
+Check if a heuristic can partition the task set
+"""
+def review_heuristic_multi(algorithm: MultiprocessorSchedulerType,
+                          task_set: TaskSet,
+                          m: int,
+                          k: int,
+                          heuristic: PartitionHeuristic = BestFit(),
+                          num_workers: int = 8,
+                          verbose=False,
+                          force_simulation=False,
+                          task_file=None) -> int:
+    if task_set is None:
+        print("Task set could not be parsed.")
+        return 4
+
+    edf_task_scheduler = get_multi_scheduler(algorithm, task_set, m, k, heuristic, num_workers, verbose, force_simulation)
+
+    partition_possible = edf_task_scheduler.is_partitioned
+    print(f"Partition possible: {partition_possible}")
+
+    return partition_possible
 
 """
 Evaluate multiple task sets in a folder in parallel for multiprocessor systems!
@@ -136,3 +158,47 @@ def review_task_sets_in_parallel_multi(algorithm: MultiprocessorSchedulerType,
         MultiprocessorFeasibility.NOT_SCHEDULABLE_SHORTCUT: not_schedulable_no_simulation,
         MultiprocessorFeasibility.CANNOT_TELL: cannot_tell,
     }
+
+def review_heuristics_multi(folder_name: str,
+                            num_processors: int = 8,
+                            num_clusters: int = 3,
+                            verbose=False,
+                            timeout=10,
+                            force_simulation=False):
+    # Counters for successes and failures for each heuristic
+    results = {
+        "FirstFit": {"success": 0, "failure": 0},
+        "NextFit": {"success": 0, "failure": 0},
+        "BestFit": {"success": 0, "failure": 0},
+        "WorstFit": {"success": 0, "failure": 0},
+    }
+
+    directory = Path(folder_name)
+
+    # Recursively get all task files
+    task_files = [str(task_file) for task_file in directory.rglob("*") if task_file.is_file()]
+
+    tasks = [(parse_task_file(task_file), task_file) for task_file in task_files]  # (TaskSet, Path)
+
+    heuristics = [BestFit(), FirstFit(), NextFit(), WorstFit()]
+    heuristic_names = ["BestFit", "FirstFit", "NextFit", "WorstFit"]
+
+    for heuristic, heuristic_name in zip(heuristics, heuristic_names):
+        # Partitioned EDF only
+        algorithm = MultiprocessorSchedulerType.EDF_K
+        # Evaluate each heuristic for all task sets
+        for task_set, task_file in tasks:
+            success = review_heuristic_multi(
+                algorithm, task_set, num_processors, num_clusters, heuristic, verbose, force_simulation
+            )
+
+            # Update success or failure counts
+            if success:
+                results[heuristic_name]["success"] += 1
+            else:
+                results[heuristic_name]["failure"] += 1
+
+    total_files = len(tasks)
+    print(f"Total files considered: {total_files}")
+    for heuristic_name, counts in results.items():
+        print(f"{heuristic_name}: Success = {counts['success']}, Failure = {counts['failure']}")

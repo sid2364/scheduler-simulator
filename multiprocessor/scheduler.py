@@ -294,42 +294,19 @@ class EDFk(ABC):
             if self.verbose: print("Density condition not met")
             return 3
 
-        # Check Utilisation Bound
-        if not self.check_utilisation_bound():
-            if self.verbose: print("Utilisation bound condition not met")
-            return 3
+        # Check Utilisation Bound - Commented out since found it to be too restrictive and not always correct
+        # if not self.check_utilisation_bound():
+        #     if self.verbose: print("Utilisation bound condition not met")
+        #     return 3
 
         # Check that we have the minimum number of processors
         m_min = self.calculate_m_min()
-        if m_min > self.m:
-            if self.verbose: print(f"m_min {m_min} is greater than m {self.m}")
-            return 3
+        if m_min <= self.m:
+            if self.verbose: print(f"m_min {m_min} is <= to m {self.m}")
+            return 1
 
         # Else we have to simulate the task set (in parallel)
         feasible = 4  # Initialize feasible as unknown
-        # with multiprocessing.Pool(processes=self.num_workers) as pool:
-        #     results = pool.map(self.simulate_taskset, self.clusters)
-        #
-        # for ret_val in results:
-        #     if ret_val == 0:
-        #         feasible = 0  # Schedulable, but we continue to check other clusters
-        #     elif ret_val == 2:
-        #         return 2  # Not schedulable, no need to check other clusters
-        #     elif ret_val == 4:
-        #         return 4  # Timeout/Unknown, no need to check other clusters
-
-        # print(f"Using {self.num_workers} workers, with {len(self.clusters)} clusters")
-        # User multiprocessing.Process instead of multiprocessing.Pool
-        # with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
-        #     futures = [executor.submit(self.simulate_taskset, cluster) for cluster in self.clusters]
-        #     for future in as_completed(futures):
-        #         ret_val = future.result()
-        #         if ret_val == 0:
-        #             feasible = 0
-        #         elif ret_val == 2:
-        #             return 2
-        #         elif ret_val == 4:
-        #             return 4
 
         # Do everything sequentially
         for cluster in self.clusters:
@@ -548,7 +525,7 @@ class PartitionedEDF(EDFk):
         # Use get_feasibility_interval() to get the first idle point in the task set for this cluster
         return get_feasibility_interval(cluster.tasks)
 
-    """
+    """Yeah 
         Main method to determine if the task set is schedulable or not
 
         Return codes:

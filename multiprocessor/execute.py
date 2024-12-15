@@ -2,6 +2,8 @@ from pathlib import Path
 from tabnanny import verbose
 from time import time
 
+from nbformat.sign import algorithms
+
 from multiprocessor.feasibility.review import review_task_set_multi, review_task_sets_in_parallel_multi
 from multiprocessor.partitioner import FirstFit, NextFit, BestFit, WorstFit
 from multiprocessor.scheduler import MultiprocessorSchedulerType
