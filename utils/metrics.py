@@ -30,6 +30,7 @@ class UniprocessorFeasibility:
             return "Infeasible (both A and Optimal)"
         elif status == UniprocessorFeasibility.TIMED_OUT:
             return "Timed Out"
+        return "Unknown"
 
 """
 Enum class for the status of the task set in multiprocessor systems
@@ -58,7 +59,7 @@ class MultiprocessorFeasibility:
 """
 Utilisation factor functions
 """
-def utilisation(task_set: TaskSet) -> bool:
+def utilisation(task_set: TaskSet) -> float:
     # Calculate the utilization factor
     utilization_factor = 0
     for task in task_set.tasks:
